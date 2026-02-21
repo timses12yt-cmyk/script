@@ -10,6 +10,8 @@ local Stats = game:GetService("Stats")
 local Workspace = game:GetService("Workspace")
 local NetworkClient = game:GetService("NetworkClient")
 local HttpService = game:GetService("HttpService")
+local VirtualUser = game:GetService("VirtualUser")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 
@@ -135,8 +137,11 @@ local cols = {
 
 local features = {
     aimbot = false,
-    teamCheck = true, -- По умолчанию включено (не наводится на друзей)
+    aimbotMethod = "Lerp (плавный)", -- Способ аима
+    aimbotRandomness = 0.1, -- Рандомное движение при аиме (0-0.5)
+    teamCheck = true,
     fly = false,
+    flyMethod = 1, -- Метод обхода флая (1-15)
     noclip = false,
     infJump = false,
     fullbright = false,
@@ -165,6 +170,9 @@ local features = {
 local defaultBrightness = Lighting.Brightness
 local defaultClock = Lighting.ClockTime
 local defaultShadows = Lighting.GlobalShadows
+local defaultFogEnd = Lighting.FogEnd
+local defaultAmbient = Lighting.Ambient
+local defaultOutdoorAmbient = Lighting.OutdoorAmbient
 
 local themeSettings = {
     bgDimTransparency = 0.5,
@@ -234,7 +242,511 @@ fovCircle.NumSides = 60
 fovCircle.Filled = false
 fovCircle.ZIndex = 999999
 
--- Aimbot с правильной проверкой на друзей
+-- Функция для рандомного смещения при аиме
+local function addRandomness(target, amount)
+    if amount <= 0 then return target end
+    local randomOffset = Vector3.new(
+        (math.random() * 2 - 1) * amount,
+        (math.random() * 2 - 1) * amount,
+        (math.random() * 2 - 1) * amount
+    )
+    return target + randomOffset
+end
+
+-- 15 различных методов обхода для флая
+local flyConnections = {}
+local function updateFlyMethod()
+    -- Отключаем все предыдущие соединения
+    for _, conn in ipairs(flyConnections) do
+        conn:Disconnect()
+    end
+    flyConnections = {}
+    
+    if not features.fly or not player.Character then return end
+    
+    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+    if not hrp or not humanoid then return end
+    
+    -- Метод 1: Velocity (стандартный)
+    if features.flyMethod == 1 then
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then return end
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            hrp.Velocity = dir * features.flySpeed
+        end)
+        table.insert(flyConnections, conn)
+    
+    -- Метод 2: CFrame телепортация
+    elseif features.flyMethod == 2 then
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then return end
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            if dir.Magnitude > 0 then
+                hrp.CFrame = hrp.CFrame + dir.Unit * (features.flySpeed / 10)
+            end
+        end)
+        table.insert(flyConnections, conn)
+    
+    -- Метод 3: BodyVelocity + BodyGyro
+    elseif features.flyMethod == 3 then
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+        bodyVelocity.P = 1000
+        bodyVelocity.Parent = hrp
+        
+        local bodyGyro = Instance.new("BodyGyro")
+        bodyGyro.MaxTorque = Vector3.new(4000, 4000, 4000)
+        bodyGyro.P = 1000
+        bodyGyro.Parent = hrp
+        
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then
+                bodyVelocity:Destroy()
+                bodyGyro:Destroy()
+                return
+            end
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            bodyVelocity.Velocity = dir * features.flySpeed
+            bodyGyro.CFrame = cam
+        end)
+        table.insert(flyConnections, conn)
+        table.insert(flyConnections, {Disconnect = function() 
+            pcall(function() bodyVelocity:Destroy() end)
+            pcall(function() bodyGyro:Destroy() end)
+        end})
+    
+    -- Метод 4: Анти-гравитация + Velocity
+    elseif features.flyMethod == 4 then
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then return end
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                hrp.Velocity = hrp.Velocity + Vector3.new(0, features.flySpeed, 0)
+            end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+                hrp.Velocity = hrp.Velocity - Vector3.new(0, features.flySpeed, 0)
+            end
+            
+            hrp.Velocity = hrp.Velocity + dir * features.flySpeed
+        end)
+        table.insert(flyConnections, conn)
+    
+    -- Метод 5: Плавное движение (Tween)
+    elseif features.flyMethod == 5 then
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then return end
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            if dir.Magnitude > 0 then
+                local targetPos = hrp.Position + dir.Unit * (features.flySpeed / 5)
+                hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(targetPos), 0.3)
+            end
+        end)
+        table.insert(flyConnections, conn)
+    
+    -- Метод 6: BodyPosition
+    elseif features.flyMethod == 6 then
+        local bodyPosition = Instance.new("BodyPosition")
+        bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
+        bodyPosition.P = 2000
+        bodyPosition.Parent = hrp
+        
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then
+                bodyPosition:Destroy()
+                return
+            end
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                dir = dir + Vector3.new(0, 1, 0)
+            end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+                dir = dir - Vector3.new(0, 1, 0)
+            end
+            
+            if dir.Magnitude > 0 then
+                bodyPosition.Position = hrp.Position + dir.Unit * (features.flySpeed / 5)
+            else
+                bodyPosition.Position = hrp.Position
+            end
+        end)
+        table.insert(flyConnections, conn)
+        table.insert(flyConnections, {Disconnect = function() 
+            pcall(function() bodyPosition:Destroy() end)
+        end})
+    
+    -- Метод 7: Иммунитет к гравитации (SetStateEnabled)
+    elseif features.flyMethod == 7 then
+        pcall(function()
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+        end)
+        
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then return end
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                hrp.Velocity = hrp.Velocity + Vector3.new(0, features.flySpeed, 0)
+            end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+                hrp.Velocity = hrp.Velocity - Vector3.new(0, features.flySpeed, 0)
+            end
+            
+            hrp.Velocity = hrp.Velocity + dir * features.flySpeed
+        end)
+        table.insert(flyConnections, conn)
+    
+    -- Метод 8: Обход через VirtualUser (симуляция прыжков)
+    elseif features.flyMethod == 8 then
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then return end
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            
+            if hrp.Velocity.Y < -1 then
+                VirtualUser:Jump()
+            end
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            hrp.Velocity = Vector3.new(dir.X * features.flySpeed, hrp.Velocity.Y, dir.Z * features.flySpeed)
+            
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                hrp.Velocity = Vector3.new(hrp.Velocity.X, features.flySpeed, hrp.Velocity.Z)
+            end
+        end)
+        table.insert(flyConnections, conn)
+    
+    -- Метод 9: CFrame + BodyVelocity
+    elseif features.flyMethod == 9 then
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+        bodyVelocity.P = 1000
+        bodyVelocity.Parent = hrp
+        
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then
+                bodyVelocity:Destroy()
+                return
+            end
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                dir = dir + Vector3.new(0, 1, 0)
+            end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+                dir = dir - Vector3.new(0, 1, 0)
+            end
+            
+            bodyVelocity.Velocity = dir * features.flySpeed
+            hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + cam.LookVector)
+        end)
+        table.insert(flyConnections, conn)
+        table.insert(flyConnections, {Disconnect = function() 
+            pcall(function() bodyVelocity:Destroy() end)
+        end})
+    
+    -- Метод 10: Рывки (Teleport)
+    elseif features.flyMethod == 10 then
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then return end
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                dir = dir + Vector3.new(0, 1, 0)
+            end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+                dir = dir - Vector3.new(0, 1, 0)
+            end
+            
+            if dir.Magnitude > 0 then
+                hrp.CFrame = hrp.CFrame + dir.Unit * features.flySpeed
+            end
+        end)
+        table.insert(flyConnections, conn)
+    
+    -- Метод 11: Анти-кик (сброс скорости)
+    elseif features.flyMethod == 11 then
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then return end
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            
+            if math.abs(hrp.Velocity.Y) > 50 then
+                hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+            end
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            hrp.Velocity = Vector3.new(dir.X * features.flySpeed, hrp.Velocity.Y, dir.Z * features.flySpeed)
+            
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                hrp.Velocity = Vector3.new(hrp.Velocity.X, features.flySpeed, hrp.Velocity.Z)
+            end
+        end)
+        table.insert(flyConnections, conn)
+    
+    -- Метод 12: BodyThrust
+    elseif features.flyMethod == 12 then
+        local bodyThrust = Instance.new("BodyThrust")
+        bodyThrust.Force = Vector3.new(0, 0, 0)
+        bodyThrust.Parent = hrp
+        
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then
+                bodyThrust:Destroy()
+                return
+            end
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                dir = dir + Vector3.new(0, 1, 0)
+            end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+                dir = dir - Vector3.new(0, 1, 0)
+            end
+            
+            bodyThrust.Force = dir * features.flySpeed * 10
+        end)
+        table.insert(flyConnections, conn)
+        table.insert(flyConnections, {Disconnect = function() 
+            pcall(function() bodyThrust:Destroy() end)
+        end})
+    
+    -- Метод 13: Комбинация методов
+    elseif features.flyMethod == 13 then
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+        bodyVelocity.P = 1000
+        bodyVelocity.Parent = hrp
+        
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then
+                bodyVelocity:Destroy()
+                return
+            end
+            
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                hrp.CFrame = hrp.CFrame + Vector3.new(0, features.flySpeed / 10, 0)
+            end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+                hrp.CFrame = hrp.CFrame - Vector3.new(0, features.flySpeed / 10, 0)
+            end
+            
+            bodyVelocity.Velocity = dir * features.flySpeed
+        end)
+        table.insert(flyConnections, conn)
+        table.insert(flyConnections, {Disconnect = function() 
+            pcall(function() bodyVelocity:Destroy() end)
+        end})
+    
+    -- Метод 14: Плавное ускорение
+    elseif features.flyMethod == 14 then
+        local currentVel = Vector3.new()
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then return end
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                dir = dir + Vector3.new(0, 1, 0)
+            end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+                dir = dir - Vector3.new(0, 1, 0)
+            end
+            
+            local targetVel = dir * features.flySpeed
+            currentVel = currentVel:Lerp(targetVel, 0.1)
+            hrp.Velocity = currentVel
+        end)
+        table.insert(flyConnections, conn)
+    
+    -- Метод 15: Максимальный обход
+    elseif features.flyMethod == 15 then
+        pcall(function()
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
+        end)
+        
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bodyVelocity.P = 10000
+        bodyVelocity.Parent = hrp
+        
+        local bodyGyro = Instance.new("BodyGyro")
+        bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        bodyGyro.P = 10000
+        bodyGyro.Parent = hrp
+        
+        local antiGravity = Instance.new("BodyForce")
+        antiGravity.Force = Vector3.new(0, workspace.Gravity * hrp:GetMass(), 0)
+        antiGravity.Parent = hrp
+        
+        local conn = RunService.Heartbeat:Connect(function()
+            if not features.fly or not player.Character then
+                bodyVelocity:Destroy()
+                bodyGyro:Destroy()
+                antiGravity:Destroy()
+                return
+            end
+            
+            local dir = Vector3.new()
+            local cam = workspace.CurrentCamera.CFrame
+            
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
+            
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                dir = dir + Vector3.new(0, 1, 0)
+            end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+                dir = dir - Vector3.new(0, 1, 0)
+            end
+            
+            bodyVelocity.Velocity = dir * features.flySpeed
+            bodyGyro.CFrame = cam
+        end)
+        table.insert(flyConnections, conn)
+        table.insert(flyConnections, {Disconnect = function() 
+            pcall(function() bodyVelocity:Destroy() end)
+            pcall(function() bodyGyro:Destroy() end)
+            pcall(function() antiGravity:Destroy() end)
+        end})
+    end
+end
+
+-- Aimbot с разными методами и рандомным движением
 RunService.RenderStepped:Connect(function()
     if not features.aimbot then return end
     
@@ -255,18 +767,15 @@ RunService.RenderStepped:Connect(function()
     
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
-            -- Проверка на друзей (если teamCheck включен)
+            -- Проверка на друзей
             if features.teamCheck then
-                -- Проверяем, есть ли у игрока Team и совпадает ли он с нашей командой
                 local playerTeam = p.Team
                 local myTeam = player.Team
                 
-                -- Если у обоих есть команды и они совпадают - пропускаем
                 if playerTeam and myTeam and playerTeam == myTeam then
                     continue
                 end
                 
-                -- Дополнительная проверка на друзей через FriendService (если доступно)
                 local success, isFriend = pcall(function()
                     return player:IsFriendsWith(p.UserId)
                 end)
@@ -293,26 +802,46 @@ RunService.RenderStepped:Connect(function()
     end
     
     if closest then
-        local lookAt = CFrame.new(workspace.CurrentCamera.CFrame.Position, closest.Position)
-        workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(lookAt, features.aimbotSpeed)
+        local targetPos = closest.Position
+        -- Добавляем рандомное движение если включено
+        targetPos = addRandomness(targetPos, features.aimbotRandomness)
+        
+        local lookAt = CFrame.new(workspace.CurrentCamera.CFrame.Position, targetPos)
+        
+        -- Разные методы аима
+        if features.aimbotMethod == "Lerp (плавный)" then
+            workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(lookAt, features.aimbotSpeed)
+        elseif features.aimbotMethod == "Мгновенный" then
+            workspace.CurrentCamera.CFrame = lookAt
+        elseif features.aimbotMethod == "Плавный+ (оптимизированный)" then
+            local smoothness = features.aimbotSpeed * 0.5
+            workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(lookAt, smoothness)
+        elseif features.aimbotMethod == "С инерцией" then
+            local currentCF = workspace.CurrentCamera.CFrame
+            local newCF = currentCF:Lerp(lookAt, features.aimbotSpeed)
+            -- Добавляем небольшую инерцию
+            local inertia = (newCF.Position - currentCF.Position) * 0.5
+            workspace.CurrentCamera.CFrame = CFrame.new(currentCF.Position + inertia, targetPos)
+        elseif features.aimbotMethod == "Случайный трассировщик" then
+            -- Добавляем случайные отклонения для более естественного вида
+            local randomOffset = Vector3.new(
+                (math.random() - 0.5) * features.aimbotRandomness * 2,
+                (math.random() - 0.5) * features.aimbotRandomness * 2,
+                (math.random() - 0.5) * features.aimbotRandomness * 2
+            )
+            local randomizedLookAt = CFrame.new(workspace.CurrentCamera.CFrame.Position, targetPos + randomOffset)
+            workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(randomizedLookAt, features.aimbotSpeed)
+        end
     end
 end)
 
-RunService.Heartbeat:Connect(function()
-    if not features.fly or not player.Character then return end
-    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    
-    local dir = Vector3.new()
-    local cam = workspace.CurrentCamera.CFrame
-    
-    if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-    if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-    if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-    if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-    
-    hrp.Velocity = dir * features.flySpeed
-end)
+-- Обновление метода флая при изменении
+local function setFlyMethod(method)
+    features.flyMethod = method
+    if features.fly then
+        updateFlyMethod()
+    end
+end
 
 RunService.Stepped:Connect(function()
     if not features.noclip or not player.Character then return end
@@ -428,7 +957,6 @@ local function updateESP()
         if hrp and head and hum then
             local espColor = features.espColor
             if features.teamCheck then
-                -- Проверка на друзей для ESP
                 local playerTeam = p.Team
                 local myTeam = player.Team
                 
@@ -513,15 +1041,15 @@ local function updateESP()
     end
 end
 
--- Particles система - рандомные частицы в прогруженной территории
+-- Particles система - рандомные частицы по всей прогруженной территории
 local particles = {}
 local particleFeatures = {
     enabled = false,
     particleType = "Шары 3D",
-    count = 20,
+    count = 30, -- Увеличено макс количество
     size = 0.5,
     speed = 10,
-    spread = 50,
+    spread = 100, -- Увеличен радиус спавна
     lifetime = 3,
     color = Color3.fromRGB(100, 200, 255)
 }
@@ -531,21 +1059,44 @@ local function createRandomParticle()
     local hrp = player.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return nil end
     
-    -- Случайная позиция в радиусе от игрока
-    local angle = math.random() * 2 * math.pi
-    local radius = math.random(10, particleFeatures.spread)
-    local height = math.random(-10, 20)
+    -- Получаем все загруженные части
+    local loadedParts = workspace:GetDescendants()
+    local validPositions = {}
     
-    local pos = hrp.Position + Vector3.new(
-        math.cos(angle) * radius,
-        height,
-        math.sin(angle) * radius
-    )
+    -- Собираем позиции загруженных объектов
+    for _, part in ipairs(loadedParts) do
+        if part:IsA("BasePart") and part.Position.Magnitude < 10000 then
+            table.insert(validPositions, part.Position)
+        end
+    end
     
-    -- Случайное направление
+    -- Если нашли позиции, спавним рядом с одной из них
+    local spawnPos
+    if #validPositions > 0 then
+        local randomPartPos = validPositions[math.random(1, #validPositions)]
+        -- Случайное смещение от выбранной части
+        spawnPos = randomPartPos + Vector3.new(
+            math.random(-particleFeatures.spread, particleFeatures.spread),
+            math.random(-particleFeatures.spread, particleFeatures.spread),
+            math.random(-particleFeatures.spread, particleFeatures.spread)
+        )
+    else
+        -- Если нет частей, спавним вокруг игрока
+        local angle = math.random() * 2 * math.pi
+        local radius = math.random(10, particleFeatures.spread)
+        local height = math.random(-particleFeatures.spread, particleFeatures.spread)
+        
+        spawnPos = hrp.Position + Vector3.new(
+            math.cos(angle) * radius,
+            height,
+            math.sin(angle) * radius
+        )
+    end
+    
+    -- Полностью случайное направление во все стороны
     local dir = Vector3.new(
         math.random(-100, 100) / 100,
-        math.random(-50, 100) / 100,
+        math.random(-100, 100) / 100,
         math.random(-100, 100) / 100
     ).Unit
     
@@ -559,13 +1110,15 @@ local function createRandomParticle()
         color = Color3.fromHSV(math.random(), 1, 1)
     elseif particleFeatures.particleType == "Шары 3D" then
         color = Color3.fromRGB(100, math.random(150, 255), 255)
+    elseif particleFeatures.particleType == "Неоновые" then
+        color = Color3.fromRGB(math.random(100, 255), math.random(100, 255), math.random(100, 255))
     end
     
     -- Создание частицы (шар)
     local ball = Instance.new("Part")
     ball.Parent = workspace
     ball.Size = Vector3.new(particleFeatures.size, particleFeatures.size, particleFeatures.size)
-    ball.Position = pos
+    ball.Position = spawnPos
     ball.Anchored = false
     ball.CanCollide = false
     ball.Transparency = 0.2
@@ -579,7 +1132,7 @@ local function createRandomParticle()
     local glow = Instance.new("Part")
     glow.Parent = workspace
     glow.Size = Vector3.new(particleFeatures.size * 2, particleFeatures.size * 2, particleFeatures.size * 2)
-    glow.Position = pos
+    glow.Position = spawnPos
     glow.Anchored = false
     glow.CanCollide = false
     glow.Transparency = 0.6
@@ -597,7 +1150,7 @@ local function createRandomParticle()
     light.Brightness = 2
     light.Shadows = false
     
-    -- Установка скорости
+    -- Установка скорости в случайном направлении
     ball.Velocity = dir * particleFeatures.speed
     glow.Velocity = dir * particleFeatures.speed
     
@@ -609,22 +1162,17 @@ local function createRandomParticle()
     return {ball, glow, light}
 end
 
-local function updateParticles()
-    -- Очистка старых частиц (они сами удаляются через Debris)
-    particles = {}
-end
-
 -- Запуск генерации частиц
 spawn(function()
     while true do
         if particleFeatures.enabled and player.Character then
-            -- Создаем несколько частиц за раз
-            for i = 1, math.floor(particleFeatures.count / 2) do
+            -- Создаем много частиц за раз
+            for i = 1, math.floor(particleFeatures.count) do
                 createRandomParticle()
-                wait(0.1)
+                wait(0.05) -- Небольшая задержка между созданием
             end
         end
-        wait(particleFeatures.lifetime / 2)
+        wait(particleFeatures.lifetime / 1.5) -- Чаще обновляем для большего количества частиц
     end
 end)
 
@@ -897,6 +1445,13 @@ local function createDropdown(col, text, options, default, callback)
                 updateESP()
             elseif text == "Particle Type" then
                 particleFeatures.particleType = options[currentIndex]
+            elseif text == "Aimbot Method" then
+                features.aimbotMethod = options[currentIndex]
+            elseif text == "Fly Method" then
+                features.flyMethod = currentIndex
+                if features.fly then
+                    updateFlyMethod()
+                end
             end
         end
     end)
@@ -976,6 +1531,8 @@ end
 
 -- COMBAT
 local aimbotBtn = createButton(cols.Combat, "Aimbot 360", false, function(on) features.aimbot = on end)
+createDropdown(cols.Combat, "Aimbot Method", {"Lerp (плавный)", "Мгновенный", "Плавный+ (оптимизированный)", "С инерцией", "Случайный трассировщик"}, "Lerp (плавный)", function(val) end)
+createSlider(cols.Combat, "Рандомность аима", 0, 0.5, 0.1, function(val) features.aimbotRandomness = val end, "")
 createSlider(cols.Combat, "Скорость", 0.1, 1, 0.5, function(val) features.aimbotSpeed = val end, "")
 createSlider(cols.Combat, "FOV", 30, 180, 90, function(val) features.aimbotFOV = val end, "°")
 createToggle(cols.Combat, "Показать FOV", false, function(on) features.aimbotShowFOV = on end)
@@ -985,7 +1542,18 @@ local teamCheckBtn = createButton(cols.Combat, "Team Check (друзья)", fals
 end)
 
 -- MOVEMENT
-local flyBtn = createButton(cols.Movement, "Fly", false, function(on) features.fly = on end)
+local flyBtn = createButton(cols.Movement, "Fly", false, function(on) 
+    features.fly = on
+    if on then
+        updateFlyMethod()
+    else
+        for _, conn in ipairs(flyConnections) do
+            pcall(function() conn:Disconnect() end)
+        end
+        flyConnections = {}
+    end
+end)
+createDropdown(cols.Movement, "Fly Method", {"Метод 1: Velocity", "Метод 2: CFrame", "Метод 3: BodyVelocity+BodyGyro", "Метод 4: Анти-гравитация", "Метод 5: Tween", "Метод 6: BodyPosition", "Метод 7: SetStateEnabled", "Метод 8: VirtualUser", "Метод 9: CFrame+BodyVelocity", "Метод 10: Рывки", "Метод 11: Анти-кик", "Метод 12: BodyThrust", "Метод 13: Комбинация", "Метод 14: Плавное ускорение", "Метод 15: Максимальный обход"}, "Метод 1: Velocity", function(val) end)
 createSlider(cols.Movement, "Скорость", 10, 200, 50, function(val) features.flySpeed = val end, "")
 local noclipBtn = createButton(cols.Movement, "Noclip", false, function(on) features.noclip = on end)
 local infJumpBtn = createButton(cols.Movement, "Inf Jump", false, function(on) features.infJump = on end)
@@ -997,10 +1565,16 @@ local fullbrightBtn = createButton(cols.Visuals, "Fullbright", false, function(o
         Lighting.Brightness = 5
         Lighting.ClockTime = 14
         Lighting.GlobalShadows = false
+        Lighting.FogEnd = 100000
+        Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+        Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
     else
         Lighting.Brightness = defaultBrightness
         Lighting.ClockTime = defaultClock
         Lighting.GlobalShadows = defaultShadows
+        Lighting.FogEnd = defaultFogEnd
+        Lighting.Ambient = defaultAmbient
+        Lighting.OutdoorAmbient = defaultOutdoorAmbient
     end
 end)
 local blurBtn = createButton(cols.Visuals, "Blur", false, function(on) 
@@ -1066,10 +1640,10 @@ end)
 local particlesBtn = createButton(cols.Misc, "Particles 3D", false, function(on)
     particleFeatures.enabled = on
 end)
-createDropdown(cols.Misc, "Particle Type", {"Шары 3D", "Огненные", "Ледяные", "Радужные"}, "Шары 3D", function(val)
+createDropdown(cols.Misc, "Particle Type", {"Шары 3D", "Огненные", "Ледяные", "Радужные", "Неоновые"}, "Шары 3D", function(val)
     particleFeatures.particleType = val
 end)
-createSlider(cols.Misc, "Кол-во", 5, 50, 20, function(val)
+createSlider(cols.Misc, "Кол-во (макс 50)", 5, 50, 30, function(val)
     particleFeatures.count = math.floor(val)
 end, "")
 createSlider(cols.Misc, "Размер", 0.2, 2, 0.5, function(val)
@@ -1078,7 +1652,7 @@ end, "")
 createSlider(cols.Misc, "Скорость", 5, 30, 10, function(val)
     particleFeatures.speed = val
 end, "")
-createSlider(cols.Misc, "Радиус", 20, 100, 50, function(val)
+createSlider(cols.Misc, "Радиус спавна", 30, 200, 100, function(val)
     particleFeatures.spread = val
 end, "")
 createSlider(cols.Misc, "Время жизни", 1, 10, 3, function(val)
@@ -1350,4 +1924,18 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
-print("UI загружен - Aimbot не наводится на друзей, Particles 3D, ESP с трейлами")
+print([[ 
+▓█████  ▒█████   ██▓  ██████  ▄████▄   ██▀███   ▄▄▄       ███▄    █ ▄▄▄█████▓ ▒█████   ██▓
+▓█   ▀ ▒██▒  ██▒▓██▒▒██    ▒ ▒██▀ ▀█  ▓██ ▒ ██▒▒████▄     ██ ▀█   █ ▓  ██▒ ▓▒▒██▒  ██▒▓██▒
+▒███   ▒██░  ██▒▒██▒░ ▓██▄   ▒▓█    ▄ ▓██ ░▄█ ▒▒██  ▀█▄  ▓██  ▀█ ██▒▒ ▓██░ ▒░▒██░  ██▒▒██▒
+▒▓█  ▄ ▒██   ██░░██░  ▒   ██▒▒▓▓▄ ▄██▒▒██▀▀█▄  ░██▄▄▄▄██ ▓██▒  ▐▌██▒░ ▓██▓ ░ ▒██   ██░░██░
+░▒████▒░ ████▓▒░░██░▒██████▒▒▒ ▓███▀ ░░██▓ ▒██▒ ▓█   ▓██▒▒██░   ▓██░  ▒██▒ ░ ░ ████▓▒░░██░
+░░ ▒░ ░░ ▒░▒░▒░ ░▓  ▒ ▒▓▒ ▒ ░░ ░▒ ▒  ░░ ▒▓ ░▒▓░ ▒▒   ▓▒█░░ ▒░   ▒ ▒   ▒ ░░   ░ ▒░▒░▒░ ░▓  
+ ░ ░  ░  ░ ▒ ▒░  ▒ ░░ ░▒  ░ ░  ░  ▒     ░▒ ░ ▒░  ▒   ▒▒ ░░ ░░   ░ ▒░    ░      ░ ▒ ▒░  ▒ ░
+   ░   ░ ░ ░ ▒   ▒ ░░  ░  ░  ░          ░░   ░   ░   ▒      ░   ░ ░   ░      ░ ░ ░ ▒   ▒ ░
+   ░  ░    ░ ░   ░        ░  ░ ░         ░           ░  ░         ░              ░ ░   ░  
+                              ░                                                          
+
+UI загружен - 15 методов флая, 5 методов аима с рандомным движением, Particles 3D по всей территории, ESP с трейлами
+F8 - выгрузка | M - скрыть/показать меню | Aimbot на ПКМ
+]])
