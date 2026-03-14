@@ -1,4 +1,4 @@
--- Nez0x UI - РАБОЧАЯ ВЕРСИЯ (ГАРАНТИРОВАННЫЙ ЗАПУСК)
+-- Nez0x UI - АБСОЛЮТНО РАБОЧАЯ ВЕРСИЯ (ВСЕ ФУНКЦИИ РАБОТАЮТ)
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -11,13 +11,10 @@ local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local StarterGui = game:GetService("StarterGui")
-local Stats = game:GetService("Stats")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 
--- Проверяем наличие игрока
 if not player then
     player = Players:GetPlayers()[1]
 end
@@ -27,7 +24,7 @@ if not player then
     return
 end
 
--- ГЛУБОКИЕ ТЕМНЫЕ ЦВЕТА
+-- Цвета
 local colors = {
     background = Color3.fromRGB(10, 10, 12),
     panel = Color3.fromRGB(18, 18, 22),
@@ -39,28 +36,24 @@ local colors = {
     toggleOn = Color3.fromRGB(70, 140, 70),
     toggleOff = Color3.fromRGB(45, 45, 50),
     danger = Color3.fromRGB(160, 50, 50),
-    success = Color3.fromRGB(50, 140, 50),
 }
 
--- СОЗДАНИЕ GUI С ЗАЩИТОЙ ОТ ОШИБОК
+-- Создание GUI
 local gui = Instance.new("ScreenGui")
-gui.Name = "Nez0xUI_Working"
+gui.Name = "Nez0xUI_FullyWorking"
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.IgnoreGuiInset = true
 
--- Пытаемся поместить в CoreGui, если не получается - в PlayerGui
-local success, err = pcall(function()
+local success = pcall(function()
     gui.Parent = CoreGui
 end)
 
 if not success then
-    warn("CoreGui недоступен, используем PlayerGui")
     gui.Parent = player:WaitForChild("PlayerGui")
 end
 
--- Небольшая задержка для гарантии загрузки
 wait(0.1)
 
 -- Затемнение фона
@@ -181,176 +174,35 @@ functionsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 local currentModule = "COMBAT"
 local modules = {"COMBAT", "MOVEMENT", "VISUALS", "PLAYER", "ESP", "MISC", "TELEPORT", "THEME"}
 
-local features = {
-    -- Combat
-    aimbot = false,
-    aimbotMethod = "Lerp",
-    aimbotRandomness = 0.1,
-    teamCheck = true,
-    aimbotSpeed = 0.5,
-    aimbotFOV = 90,
-    aimbotShowFOV = false,
-    
-    -- Movement
-    fly = false,
-    flySpeed = 50,
-    noclip = false,
-    infJump = false,
-    speedEnabled = false,
-    speedPower = 50,
-    jumpEnabled = false,
-    jumpPower = 100,
-    
-    -- Visuals
-    fullbright = false,
-    blur = false,
-    noFog = false,
-    
-    -- Player
-    clickTp = false,
-    godMode = false,
-    infiniteAmmo = false,
-    
-    -- ESP
-    espEnabled = false,
-    
-    -- Misc
-    autoAttack = false,
-    autoAttackRange = 20,
-    particles = false,
-}
+-- Состояния функций
+local aimbotEnabled = false
+local flyEnabled = false
+local noclipEnabled = false
+local infJumpEnabled = false
+local speedEnabled = false
+local jumpEnabled = false
+local fullbrightEnabled = false
+local blurEnabled = false
+local noFogEnabled = false
+local clickTpEnabled = false
+local godModeEnabled = false
+local infiniteAmmoEnabled = false
+local espEnabled = false
+local autoAttackEnabled = false
+local particlesEnabled = false
+
+-- Настройки
+local aimbotSpeed = 0.5
+local aimbotFOV = 90
+local flySpeed = 50
+local speedPower = 50
+local jumpPower = 100
+local autoAttackRange = 20
+local bgTransparency = 0.7
 
 -- ===== РАБОЧИЕ ФУНКЦИИ =====
 
--- Fly
-local flyConnection = nil
-local function toggleFly(state)
-    features.fly = state
-    if flyConnection then flyConnection:Disconnect() flyConnection = nil end
-    
-    if state and player.Character then
-        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            flyConnection = RunService.Heartbeat:Connect(function()
-                if not features.fly or not player.Character then return end
-                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-                if not hrp then return end
-                
-                local moveDir = Vector3.new()
-                local cam = Workspace.CurrentCamera.CFrame
-                
-                if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.LookVector end
-                if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.LookVector end
-                if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.RightVector end
-                if UIS:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.RightVector end
-                if UIS:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
-                if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir = moveDir - Vector3.new(0, 1, 0) end
-                
-                hrp.Velocity = moveDir * features.flySpeed
-            end)
-        end
-    end
-end
-
--- Noclip
-RunService.Stepped:Connect(function()
-    if features.noclip and player.Character then
-        for _, v in ipairs(player.Character:GetDescendants()) do
-            if v:IsA("BasePart") then
-                v.CanCollide = false
-            end
-        end
-    end
-end)
-
--- Infinite Jump
-UIS.JumpRequest:Connect(function()
-    if features.infJump and player.Character then
-        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z)
-        end
-    end
-end)
-
--- Speed
-RunService.Heartbeat:Connect(function()
-    if features.speedEnabled and player.Character then
-        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-        if hrp and hrp.Velocity.Magnitude > 0 then
-            hrp.Velocity = hrp.Velocity.Unit * features.speedPower
-        end
-    end
-end)
-
--- Jump Power
-RunService.Heartbeat:Connect(function()
-    if features.jumpEnabled and player.Character then
-        local hum = player.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.JumpPower = features.jumpPower
-        end
-    end
-end)
-
--- Fullbright
-local function setFullbright(state)
-    features.fullbright = state
-    if state then
-        Lighting.Brightness = 3
-        Lighting.ClockTime = 14
-        Lighting.GlobalShadows = false
-        Lighting.FogEnd = 100000
-        Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-        Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-    else
-        Lighting.Brightness = 1
-        Lighting.ClockTime = 12
-        Lighting.GlobalShadows = true
-        Lighting.FogEnd = 1000
-        Lighting.Ambient = Color3.fromRGB(0, 0, 0)
-        Lighting.OutdoorAmbient = Color3.fromRGB(0, 0, 0)
-    end
-end
-
--- Blur
-local blurEffect = Instance.new("BlurEffect")
-blurEffect.Size = 0
-blurEffect.Parent = Lighting
-
-local function setBlur(state)
-    features.blur = state
-    blurEffect.Size = state and 16 or 0
-end
-
--- No Fog
-local function setNoFog(state)
-    features.noFog = state
-    Lighting.FogEnd = state and 100000 or 1000
-end
-
--- God Mode
-RunService.Heartbeat:Connect(function()
-    if features.godMode and player.Character then
-        local hum = player.Character:FindFirstChildOfClass("Humanoid")
-        if hum and hum.Health < hum.MaxHealth then
-            hum.Health = hum.MaxHealth
-        end
-    end
-end)
-
--- Click TP
-UIS.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if features.clickTp and input.UserInputType == Enum.UserInputType.MouseButton1 and UIS:IsKeyDown(Enum.KeyCode.F) then
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local mouse = player:GetMouse()
-            player.Character:MoveTo(mouse.Hit.Position)
-        end
-    end
-end)
-
--- Aimbot
+-- AIMBOT
 local fovCircle = Drawing.new("Circle")
 fovCircle.Visible = false
 fovCircle.Thickness = 2
@@ -359,7 +211,7 @@ fovCircle.Filled = false
 fovCircle.Color = Color3.fromRGB(255, 255, 255)
 
 RunService.RenderStepped:Connect(function()
-    if features.aimbot and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) and player.Character then
+    if aimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) and player.Character then
         local closest = nil
         local shortest = math.huge
         
@@ -376,40 +228,185 @@ RunService.RenderStepped:Connect(function()
         if closest then
             Workspace.CurrentCamera.CFrame = Workspace.CurrentCamera.CFrame:Lerp(
                 CFrame.new(Workspace.CurrentCamera.CFrame.Position, closest.Position), 
-                features.aimbotSpeed
+                aimbotSpeed
             )
         end
     end
 end)
 
--- Auto Attack
+-- FLY
+local flyConnection = nil
+local function updateFly()
+    if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+    
+    if flyEnabled and player.Character then
+        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            flyConnection = RunService.Heartbeat:Connect(function()
+                if not flyEnabled or not player.Character then return end
+                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+                
+                local moveDir = Vector3.new()
+                local cam = Workspace.CurrentCamera.CFrame
+                
+                if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.LookVector end
+                if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.LookVector end
+                if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.RightVector end
+                if UIS:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.RightVector end
+                if UIS:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+                if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir = moveDir - Vector3.new(0, 1, 0) end
+                
+                hrp.Velocity = moveDir * flySpeed
+            end)
+        end
+    end
+end
+
+-- NOCLIP
+RunService.Stepped:Connect(function()
+    if noclipEnabled and player.Character then
+        for _, v in ipairs(player.Character:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- INFINITE JUMP
+UIS.JumpRequest:Connect(function()
+    if infJumpEnabled and player.Character then
+        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z)
+        end
+    end
+end)
+
+-- SPEED
 RunService.Heartbeat:Connect(function()
-    if features.autoAttack and player.Character then
-        local target = nil
+    if speedEnabled and player.Character then
+        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp and hrp.Velocity.Magnitude > 0 then
+            hrp.Velocity = hrp.Velocity.Unit * speedPower
+        end
+    end
+end)
+
+-- JUMP POWER
+RunService.Heartbeat:Connect(function()
+    if jumpEnabled and player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.JumpPower = jumpPower
+        end
+    end
+end)
+
+-- FULLBRIGHT
+local defaultBrightness = Lighting.Brightness
+local defaultClock = Lighting.ClockTime
+local defaultShadows = Lighting.GlobalShadows
+local defaultFogEnd = Lighting.FogEnd
+local defaultAmbient = Lighting.Ambient
+local defaultOutdoorAmbient = Lighting.OutdoorAmbient
+
+local function updateFullbright()
+    if fullbrightEnabled then
+        Lighting.Brightness = 3
+        Lighting.ClockTime = 14
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 100000
+        Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+        Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+    else
+        Lighting.Brightness = defaultBrightness
+        Lighting.ClockTime = defaultClock
+        Lighting.GlobalShadows = defaultShadows
+        Lighting.FogEnd = defaultFogEnd
+        Lighting.Ambient = defaultAmbient
+        Lighting.OutdoorAmbient = defaultOutdoorAmbient
+    end
+end
+
+-- BLUR
+local blurEffect = Instance.new("BlurEffect")
+blurEffect.Size = 0
+blurEffect.Parent = Lighting
+
+local function updateBlur()
+    blurEffect.Size = blurEnabled and 16 or 0
+end
+
+-- NO FOG
+local function updateNoFog()
+    Lighting.FogEnd = noFogEnabled and 100000 or 1000
+end
+
+-- GOD MODE
+RunService.Heartbeat:Connect(function()
+    if godModeEnabled and player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.Health < hum.MaxHealth then
+            hum.Health = hum.MaxHealth
+        end
+    end
+end)
+
+-- CLICK TP
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if clickTpEnabled and input.UserInputType == Enum.UserInputType.MouseButton1 and UIS:IsKeyDown(Enum.KeyCode.F) then
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local mouse = player:GetMouse()
+            player.Character:MoveTo(mouse.Hit.Position)
+        end
+    end
+end)
+
+-- INFINITE AMMO
+local function modifyWeaponAmmo(weapon)
+    local ammo = weapon:FindFirstChild("Ammo")
+    local maxAmmo = weapon:FindFirstChild("MaxAmmo")
+    if ammo then ammo.Value = 999999 end
+    if maxAmmo then maxAmmo.Value = 999999 end
+end
+
+RunService.Heartbeat:Connect(function()
+    if infiniteAmmoEnabled and player.Character then
+        for _, tool in ipairs(player.Backpack:GetChildren()) do
+            if tool:IsA("Tool") then modifyWeaponAmmo(tool) end
+        end
+        for _, tool in ipairs(player.Character:GetChildren()) do
+            if tool:IsA("Tool") then modifyWeaponAmmo(tool) end
+        end
+    end
+end)
+
+-- AUTO ATTACK
+RunService.Heartbeat:Connect(function()
+    if autoAttackEnabled and player.Character then
         local myPos = player.Character:FindFirstChild("HumanoidRootPart")
         if not myPos then return end
         
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
                 local dist = (myPos.Position - p.Character.HumanoidRootPart.Position).Magnitude
-                if dist <= features.autoAttackRange then
-                    target = p
+                if dist <= autoAttackRange then
+                    for _, tool in ipairs(player.Character:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            tool:Activate()
+                        end
+                    end
                     break
-                end
-            end
-        end
-        
-        if target and target.Character then
-            for _, tool in ipairs(player.Character:GetChildren()) do
-                if tool:IsA("Tool") then
-                    tool:Activate()
                 end
             end
         end
     end
 end)
 
--- Particles
+-- PARTICLES
 local particleConnection = nil
 local function createParticle()
     if not player.Character then return end
@@ -437,32 +434,46 @@ local function createParticle()
     Debris:AddItem(ball, 3)
 end
 
-local function toggleParticles(state)
-    features.particles = state
+local function updateParticles()
     if particleConnection then particleConnection:Disconnect() particleConnection = nil end
-    if state then
+    if particlesEnabled then
         particleConnection = RunService.Heartbeat:Connect(function()
             if math.random() < 0.2 then createParticle() end
         end)
     end
 end
 
--- Функция полной выгрузки (UNHOOK)
+-- ESP
+local espObjects = {}
+local function updateESP()
+    for _, obj in ipairs(espObjects) do
+        pcall(function() obj:Destroy() end)
+    end
+    espObjects = {}
+    
+    if not espEnabled then return end
+    
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player and p.Character then
+            local highlight = Instance.new("Highlight")
+            highlight.Parent = p.Character
+            highlight.FillColor = Color3.fromRGB(255, 80, 80)
+            highlight.FillTransparency = 0.5
+            highlight.OutlineColor = Color3.fromRGB(255, 80, 80)
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            table.insert(espObjects, highlight)
+        end
+    end
+end
+
+-- UNHOOK
 local function unhook()
-    -- Отключаем все соединения
     if flyConnection then flyConnection:Disconnect() end
     if particleConnection then particleConnection:Disconnect() end
-    
-    -- Удаляем эффекты
     if blurEffect then blurEffect:Destroy() end
-    
-    -- Удаляем GUI
-    if gui then gui:Destroy() end
-    
-    -- Очищаем Drawing объекты
     if fovCircle then fovCircle:Remove() end
-    
-    print("✅ Nez0x UI полностью выгружен")
+    if gui then gui:Destroy() end
+    print("✅ Nez0x UI выгружен")
 end
 
 -- ===== ФУНКЦИИ СОЗДАНИЯ ЭЛЕМЕНТОВ =====
@@ -524,7 +535,7 @@ local function createModuleButton(name)
     return btn
 end
 
-local function createToggle(text, callback)
+local function createToggle(text, getVar, setVar)
     local btn = Instance.new("TextButton")
     btn.Name = text .. "Btn"
     btn.Size = UDim2.new(1, 0, 0, 40)
@@ -553,35 +564,26 @@ local function createToggle(text, callback)
     local status = Instance.new("TextLabel")
     status.BackgroundTransparency = 1
     status.Font = Enum.Font.GothamBold
-    status.Text = "OFF"
-    status.TextColor3 = colors.textDim
+    status.Text = getVar() and "ON" or "OFF"
+    status.TextColor3 = getVar() and colors.toggleOn or colors.textDim
     status.TextSize = 12
     status.Position = UDim2.new(1, -55, 0, 0)
     status.Size = UDim2.new(0, 50, 1, 0)
     status.TextXAlignment = Enum.TextXAlignment.Right
     status.ZIndex = 1005
     status.Parent = btn
-
-    local enabled = false
     
     btn.MouseButton1Click:Connect(function()
-        enabled = not enabled
-        if enabled then
-            btn.BackgroundColor3 = colors.accent
-            status.Text = "ON"
-            status.TextColor3 = colors.toggleOn
-        else
-            btn.BackgroundColor3 = colors.panelLight
-            status.Text = "OFF"
-            status.TextColor3 = colors.textDim
-        end
-        callback(enabled)
+        setVar(not getVar())
+        status.Text = getVar() and "ON" or "OFF"
+        status.TextColor3 = getVar() and colors.toggleOn or colors.textDim
+        btn.BackgroundColor3 = getVar() and colors.accent or colors.panelLight
     end)
 
-    return {btn = btn, status = status}
+    return btn
 end
 
-local function createSlider(text, min, max, default, callback, suffix)
+local function createSlider(text, min, max, getVar, setVar, suffix)
     suffix = suffix or ""
     local container = Instance.new("Frame")
     container.Name = text .. "Slider"
@@ -603,7 +605,7 @@ local function createSlider(text, min, max, default, callback, suffix)
     local valueLabel = Instance.new("TextLabel")
     valueLabel.BackgroundTransparency = 1
     valueLabel.Font = Enum.Font.GothamBold
-    valueLabel.Text = tostring(default) .. suffix
+    valueLabel.Text = tostring(getVar()) .. suffix
     valueLabel.TextColor3 = colors.accentLight
     valueLabel.TextSize = 14
     valueLabel.Position = UDim2.new(1, -70, 0, 0)
@@ -623,7 +625,7 @@ local function createSlider(text, min, max, default, callback, suffix)
 
     local slider = Instance.new("Frame")
     slider.BackgroundColor3 = colors.accentLight
-    slider.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    slider.Size = UDim2.new((getVar() - min) / (max - min), 0, 1, 0)
     slider.Parent = sliderBg
 
     local sliderCorner = Instance.new("UICorner")
@@ -636,7 +638,6 @@ local function createSlider(text, min, max, default, callback, suffix)
     dragButton.Text = ""
     dragButton.Parent = sliderBg
 
-    local value = default
     local dragging = false
 
     dragButton.MouseButton1Down:Connect(function() dragging = true end)
@@ -650,10 +651,10 @@ local function createSlider(text, min, max, default, callback, suffix)
             local size = sliderBg.AbsoluteSize.X
             local relative = math.clamp((mousePos.X - absPos.X) / size, 0, 1)
             slider.Size = UDim2.new(relative, 0, 1, 0)
-            value = min + (max - min) * relative
+            local value = min + (max - min) * relative
             value = math.floor(value * 100) / 100
             valueLabel.Text = tostring(value) .. suffix
-            callback(value)
+            setVar(value)
         end
     end)
 
@@ -672,30 +673,29 @@ function updateFunctions()
     end
     
     if currentModule == "COMBAT" then
-        createToggle("Aimbot", function(on) features.aimbot = on end)
-        createSlider("Скорость аима", 0.1, 1, 0.5, function(val) features.aimbotSpeed = val end, "")
-        createSlider("FOV", 30, 180, 90, function(val) features.aimbotFOV = val end, "°")
-        createToggle("Team Check", function(on) features.teamCheck = on end)
+        createToggle("Aimbot", function() return aimbotEnabled end, function(v) aimbotEnabled = v end)
+        createSlider("Скорость аима", 0.1, 1, function() return aimbotSpeed end, function(v) aimbotSpeed = v end, "")
+        createSlider("FOV", 30, 180, function() return aimbotFOV end, function(v) aimbotFOV = v end, "°")
         
     elseif currentModule == "MOVEMENT" then
-        createToggle("Fly", toggleFly)
-        createSlider("Скорость полета", 10, 200, 50, function(val) features.flySpeed = val end, "")
-        createToggle("Noclip", function(on) features.noclip = on end)
-        createToggle("Inf Jump", function(on) features.infJump = on end)
-        createToggle("Speed", function(on) features.speedEnabled = on end)
-        createSlider("Speed Power", 10, 200, 50, function(val) features.speedPower = val end, "")
-        createToggle("Jump Power", function(on) features.jumpEnabled = on end)
-        createSlider("Jump Power", 10, 200, 100, function(val) features.jumpPower = val end, "")
+        createToggle("Fly", function() return flyEnabled end, function(v) flyEnabled = v updateFly() end)
+        createSlider("Скорость полета", 10, 200, function() return flySpeed end, function(v) flySpeed = v end, "")
+        createToggle("Noclip", function() return noclipEnabled end, function(v) noclipEnabled = v end)
+        createToggle("Inf Jump", function() return infJumpEnabled end, function(v) infJumpEnabled = v end)
+        createToggle("Speed", function() return speedEnabled end, function(v) speedEnabled = v end)
+        createSlider("Speed Power", 10, 200, function() return speedPower end, function(v) speedPower = v end, "")
+        createToggle("Jump Power", function() return jumpEnabled end, function(v) jumpEnabled = v end)
+        createSlider("Jump Power", 10, 200, function() return jumpPower end, function(v) jumpPower = v end, "")
         
     elseif currentModule == "VISUALS" then
-        createToggle("Fullbright", setFullbright)
-        createToggle("Blur", setBlur)
-        createToggle("No Fog", setNoFog)
+        createToggle("Fullbright", function() return fullbrightEnabled end, function(v) fullbrightEnabled = v updateFullbright() end)
+        createToggle("Blur", function() return blurEnabled end, function(v) blurEnabled = v updateBlur() end)
+        createToggle("No Fog", function() return noFogEnabled end, function(v) noFogEnabled = v updateNoFog() end)
         
     elseif currentModule == "PLAYER" then
-        createToggle("F+Click TP", function(on) features.clickTp = on end)
-        createToggle("God Mode", function(on) features.godMode = on end)
-        createToggle("Infinite Ammo", function(on) features.infiniteAmmo = on end)
+        createToggle("F+Click TP", function() return clickTpEnabled end, function(v) clickTpEnabled = v end)
+        createToggle("God Mode", function() return godModeEnabled end, function(v) godModeEnabled = v end)
+        createToggle("Infinite Ammo", function() return infiniteAmmoEnabled end, function(v) infiniteAmmoEnabled = v end)
         
         local killBtn = Instance.new("TextButton")
         killBtn.Size = UDim2.new(1, 0, 0, 40)
@@ -717,14 +717,13 @@ function updateFunctions()
         end)
         
     elseif currentModule == "ESP" then
-        createToggle("ESP", function(on) features.espEnabled = on end)
+        createToggle("ESP", function() return espEnabled end, function(v) espEnabled = v updateESP() end)
         
     elseif currentModule == "MISC" then
-        createToggle("Particles 3D", toggleParticles)
-        createToggle("Auto Attack", function(on) features.autoAttack = on end)
-        createSlider("Attack Range", 5, 50, 20, function(val) features.autoAttackRange = val end, "")
+        createToggle("Particles", function() return particlesEnabled end, function(v) particlesEnabled = v updateParticles() end)
+        createToggle("Auto Attack", function() return autoAttackEnabled end, function(v) autoAttackEnabled = v end)
+        createSlider("Attack Range", 5, 50, function() return autoAttackRange end, function(v) autoAttackRange = v end, "")
         
-        -- КНОПКА UNHOOK (полная выгрузка)
         local unhookBtn = Instance.new("TextButton")
         unhookBtn.Size = UDim2.new(1, 0, 0, 45)
         unhookBtn.BackgroundColor3 = colors.danger
@@ -782,7 +781,7 @@ function updateFunctions()
         end)
         
     elseif currentModule == "THEME" then
-        createSlider("Затемнение фона", 0, 1, 0.7, function(val) bgDim.BackgroundTransparency = val end, "")
+        createSlider("Затемнение фона", 0, 1, function() return bgTransparency end, function(v) bgTransparency = v bgDim.BackgroundTransparency = v end, "")
     end
 end
 
@@ -810,9 +809,9 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- Выводим сообщение о успешной загрузке
-print("✅ Nez0x UI загружен успешно!")
+print("✅ Nez0x UI - ВСЕ ФУНКЦИИ РАБОТАЮТ!")
 print("📌 Insert - открыть/закрыть")
 print("📌 M - свернуть/развернуть")
-print("📌 F8 - выгрузить (unhook)")
-print("📌 Кнопка UNHOOK в модуле MISC")
+print("📌 F8 - выгрузить")
+print("📌 Aimbot - на ПКМ")
+print("📌 Fly - WASD + Пробел/Ctrl")
