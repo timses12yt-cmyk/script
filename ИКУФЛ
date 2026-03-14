@@ -1,0 +1,196 @@
+-- АВТОФЛАЙ ПРИ ТЕЛЕПОРТАЦИИ (+20 блоков вверх)
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local flying = false
+local flySpeed = 50
+local lastPosition = nil
+local teleportDetected = false
+local bodyGyro, bodyVelocity
+
+-- Создание BodyMovers для полета
+local function createFly(character)
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local root = character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or not root then return end
+    
+    -- Удаляем старые если есть
+    if bodyGyro then pcall(function() bodyGyro:Destroy() end) end
+    if bodyVelocity then pcall(function() bodyVelocity:Destroy() end) end
+    
+    -- BodyGyro для управления поворотом
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.P = 9e4
+    bodyGyro.D = 500
+    bodyGyro.MaxTorque = Vector3.new(9e4, 9e4, 9e4)
+    bodyGyro.CFrame = root.CFrame
+    bodyGyro.Parent = root
+    
+    -- BodyVelocity для движения
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.MaxForce = Vector3.new(9e4, 9e4, 9e4)
+    bodyVelocity.Parent = root
+    
+    humanoid.PlatformStand = true
+    flying = true
+end
+
+-- Удаление BodyMovers
+local function removeFly()
+    if bodyGyro then pcall(function() bodyGyro:Destroy() end) end
+    if bodyVelocity then pcall(function() bodyVelocity:Destroy() end) end
+    bodyGyro, bodyVelocity = nil, nil
+    
+    local character = player.Character
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+    end
+    
+    flying = false
+end
+
+-- Подъем на 20 блоков вверх
+local function liftUp()
+    local character = player.Character
+    if not character then return end
+    
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    -- Телепортируем на 20 блоков вверх
+    root.CFrame = root.CFrame + Vector3.new(0, 20, 0)
+    print("⬆️ Поднялись на 20 блоков вверх")
+end
+
+-- Проверка телепортации
+local function checkTeleport()
+    local character = player.Character
+    if not character then 
+        lastPosition = nil
+        return
+    end
+    
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    local currentPos = root.Position
+    
+    if lastPosition then
+        -- Если расстояние больше 50 за 0.1 сек - это телепорт
+        local distance = (currentPos - lastPosition).Magnitude
+        if distance > 50 then
+            print("🌀 Телепорт обнаружен! Расстояние:", math.floor(distance))
+            teleportDetected = true
+            
+            -- Включаем флай если еще не летаем
+            if not flying then
+                createFly(character)
+                print("🚀 Флай автоматически включен")
+            end
+            
+            -- Поднимаем на 20 блоков вверх
+            liftUp()
+        end
+    end
+    
+    lastPosition = currentPos
+end
+
+-- Включение флая вручную
+local function enableFly()
+    local character = player.Character
+    if not character then return end
+    
+    createFly(character)
+    print("🚀 Флай включен вручную")
+end
+
+-- Выключение флая
+local function disableFly()
+    removeFly()
+    print("🛑 Флай выключен")
+end
+
+-- Управление с клавиши F
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.F then
+        if not flying then
+            enableFly()
+        else
+            disableFly()
+        end
+    end
+end)
+
+-- Обновление полета (движение)
+RunService.RenderStepped:Connect(function()
+    -- Проверка телепортации (каждый кадр)
+    checkTeleport()
+    
+    if not flying then return end
+    
+    local character = player.Character
+    if not character then
+        removeFly()
+        return
+    end
+    
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    -- Движение
+    local moveDirection = Vector3.new(0, 0, 0)
+    
+    -- WASD управление
+    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+        moveDirection = moveDirection + workspace.CurrentCamera.CFrame.LookVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+        moveDirection = moveDirection - workspace.CurrentCamera.CFrame.LookVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+        moveDirection = moveDirection - workspace.CurrentCamera.CFrame.RightVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+        moveDirection = moveDirection + workspace.CurrentCamera.CFrame.RightVector
+    end
+    
+    -- Вверх/вниз (ИСПРАВЛЕНО)
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+        moveDirection = moveDirection + Vector3.new(0, 1, 0)
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.C) then
+        moveDirection = moveDirection + Vector3.new(0, -1, 0)
+    end
+    
+    if moveDirection.Magnitude > 0 then
+        moveDirection = moveDirection.Unit * flySpeed
+    end
+    
+    if bodyVelocity then
+        bodyVelocity.Velocity = moveDirection
+    end
+    
+    if bodyGyro then
+        bodyGyro.CFrame = workspace.CurrentCamera.CFrame
+    end
+end)
+
+-- Автоматическое включение при спавне
+player.CharacterAdded:Connect(function(character)
+    wait(1) -- Ждем загрузки персонажа
+    enableFly()
+    liftUp()
+end)
+
+print("⚡ АВТОФЛАЙ ЗАГРУЖЕН")
+print("🔄 Автоматически включается при телепортации")
+print("⬆️ Поднимает на 20 блоков вверх")
+print("F - ручное включение/выключение")
