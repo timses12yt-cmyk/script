@@ -1,170 +1,222 @@
--- Nez0x UI - ПОЛНАЯ ВЕРСИЯ (ФИНАЛ + ВСЕ ФУНКЦИИ)
+-- Nez0x UI - МОДУЛЬНАЯ ВЕРСИЯ [DEEP DARK EDITION]
+
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
-local GuiService = game:GetService("GuiService")
-local Stats = game:GetService("Stats")
-local Workspace = game:GetService("Workspace")
-local NetworkClient = game:GetService("NetworkClient")
 local HttpService = game:GetService("HttpService")
 local VirtualUser = game:GetService("VirtualUser")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VirtualInputManager = game:GetService("VirtualInputManager")
+local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 
--- Пытаемся использовать CoreGui для самого высокого приоритета
-local success, gui = pcall(function()
-    return Instance.new("ScreenGui")
-end)
+-- ГЛУБОКИЕ ТЕМНЫЕ ЦВЕТА
+local colors = {
+    background = Color3.fromRGB(10, 10, 12),      -- Почти черный
+    panel = Color3.fromRGB(18, 18, 22),           -- Очень темный
+    panelLight = Color3.fromRGB(25, 25, 30),       -- Немного светлее
+    accent = Color3.fromRGB(70, 80, 140),          -- Темно-синий акцент
+    accentLight = Color3.fromRGB(90, 100, 180),     -- Светлый акцент
+    text = Color3.fromRGB(220, 220, 230),           -- Белый текст
+    textDim = Color3.fromRGB(140, 140, 150),        -- Серый текст
+    toggleOn = Color3.fromRGB(70, 140, 70),         -- Темно-зеленый
+    toggleOff = Color3.fromRGB(45, 45, 50),         -- Темно-серый
+    danger = Color3.fromRGB(160, 50, 50),           -- Темно-красный
+    success = Color3.fromRGB(50, 140, 50),          -- Темно-зеленый
+}
 
-if not success then
-    gui = Instance.new("ScreenGui")
-end
-
-gui.Name = "Nez0xUI"
-gui.IgnoreGuiInset = true
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "Nez0xUI_DeepDark"
+gui.Parent = CoreGui
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.IgnoreGuiInset = true
 
-local parentSuccess, parentError = pcall(function()
-    gui.Parent = CoreGui
-end)
-
-if not parentSuccess then
-    gui.Parent = player:WaitForChild("PlayerGui")
-end
-
-local blur = Instance.new("BlurEffect")
-blur.Size = 0
-blur.Parent = Lighting
-
-local main = Instance.new("Frame")
-main.Name = "Main"
-main.BackgroundTransparency = 1
-main.Size = UDim2.new(1, 0, 1, 0)
-main.ZIndex = 1000
-main.Parent = gui
-
+-- Затемнение фона
 local bgDim = Instance.new("Frame")
 bgDim.Name = "BackgroundDim"
 bgDim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-bgDim.BackgroundTransparency = 0.5
+bgDim.BackgroundTransparency = 0.7  -- Темнее
 bgDim.Size = UDim2.new(1, 0, 1, 0)
 bgDim.ZIndex = 1000
-bgDim.Parent = main
+bgDim.Parent = gui
 
+-- Главный контейнер
 local uiContainer = Instance.new("Frame")
 uiContainer.Name = "UIContainer"
 uiContainer.BackgroundTransparency = 1
-uiContainer.Size = UDim2.new(0, 1650, 0, 700)
-uiContainer.Position = UDim2.new(0.5, -825, 0.5, -350)
+uiContainer.Size = UDim2.new(0, 950, 0, 650)
+uiContainer.Position = UDim2.new(0.5, -475, 0.5, -325)
 uiContainer.ZIndex = 1001
-uiContainer.Parent = main
+uiContainer.Visible = true
+uiContainer.Parent = gui
 
-local function createColumn(name, xPos, yPos, width)
-    width = width or 200
-    
-    local col = Instance.new("Frame")
-    col.Name = name .. "Column"
-    col.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    col.BackgroundTransparency = 0.1
-    col.BorderSizePixel = 0
-    col.Position = UDim2.new(0, xPos, 0, yPos)
-    col.Size = UDim2.new(0, width, 0, 550)
-    col.ZIndex = 1002
-    col.Parent = uiContainer
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = col
-    
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.fromRGB(60, 60, 70)
-    stroke.Thickness = 1
-    stroke.Parent = col
-    
-    local colTitle = Instance.new("TextLabel")
-    colTitle.Name = "Title"
-    colTitle.BackgroundTransparency = 1
-    colTitle.Font = Enum.Font.Gotham
-    colTitle.Text = name
-    colTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    colTitle.TextSize = 18
-    colTitle.Position = UDim2.new(0, 15, 0, 10)
-    colTitle.Size = UDim2.new(1, -30, 0, 25)
-    colTitle.ZIndex = 1003
-    colTitle.Parent = col
-    
-    local scrollingContainer = Instance.new("ScrollingFrame")
-    scrollingContainer.Name = name .. "Scrolling"
-    scrollingContainer.BackgroundTransparency = 1
-    scrollingContainer.BorderSizePixel = 0
-    scrollingContainer.Position = UDim2.new(0, 0, 0, 40)
-    scrollingContainer.Size = UDim2.new(1, 0, 1, -45)
-    scrollingContainer.CanvasSize = UDim2.new(0, 0, 2, 0)
-    scrollingContainer.ScrollBarThickness = 6
-    scrollingContainer.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 110)
-    scrollingContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    scrollingContainer.ZIndex = 1003
-    scrollingContainer.Parent = col
-    
-    local layout = Instance.new("UIListLayout")
-    layout.Parent = scrollingContainer
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.new(0, 4)
-    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    
-    return {frame = col, scrolling = scrollingContainer, layout = layout}
-end
+-- ===== ЛЕВАЯ ПАНЕЛЬ - МОДУЛИ =====
+local modulesPanel = Instance.new("Frame")
+modulesPanel.Name = "ModulesPanel"
+modulesPanel.BackgroundColor3 = colors.panel
+modulesPanel.BorderSizePixel = 0
+modulesPanel.Size = UDim2.new(0, 220, 1, 0)
+modulesPanel.ZIndex = 1002
+modulesPanel.Parent = uiContainer
 
-local startX = 30
-local gap = 215
-local colY = 30
+-- Закругление левой панели
+local modulesCorner = Instance.new("UICorner")
+modulesCorner.CornerRadius = UDim.new(0, 12)
+modulesCorner.Parent = modulesPanel
 
-local cols = {
-    Combat = createColumn("COMBAT", startX, colY, 210),
-    Movement = createColumn("MOVEMENT", startX + gap, colY, 210),
-    Visuals = createColumn("VISUALS", startX + gap*2, colY, 210),
-    Player = createColumn("PLAYER", startX + gap*3, colY, 210),
-    ESP = createColumn("ESP", startX + gap*4, colY, 220),
-    Misc = createColumn("MISC", startX + gap*5, colY, 230),
-    Teleport = createColumn("TELEPORT", startX + gap*6, colY, 210),
-    Theme = createColumn("THEME", startX + gap*7 + 10, colY, 250),
+-- Тень внутри панели
+local modulesInner = Instance.new("Frame")
+modulesInner.Size = UDim2.new(1, -2, 1, -2)
+modulesInner.Position = UDim2.new(0, 1, 0, 1)
+modulesInner.BackgroundColor3 = Color3.new(0, 0, 0)
+modulesInner.BackgroundTransparency = 0.8
+modulesInner.BorderSizePixel = 0
+modulesInner.Parent = modulesPanel
+
+local innerCorner = Instance.new("UICorner")
+innerCorner.CornerRadius = UDim.new(0, 11)
+innerCorner.Parent = modulesInner
+
+-- Заголовок модулей
+local modulesTitle = Instance.new("TextLabel")
+modulesTitle.Name = "ModulesTitle"
+modulesTitle.BackgroundTransparency = 1
+modulesTitle.Font = Enum.Font.GothamBold
+modulesTitle.Text = "МОДУЛИ"
+modulesTitle.TextColor3 = colors.accentLight
+modulesTitle.TextSize = 20
+modulesTitle.Position = UDim2.new(0, 20, 0, 20)
+modulesTitle.Size = UDim2.new(1, -40, 0, 30)
+modulesTitle.TextXAlignment = Enum.TextXAlignment.Left
+modulesTitle.ZIndex = 1003
+modulesTitle.Parent = modulesPanel
+
+-- Контейнер для кнопок модулей
+local modulesScrolling = Instance.new("ScrollingFrame")
+modulesScrolling.Name = "ModulesScrolling"
+modulesScrolling.BackgroundTransparency = 1
+modulesScrolling.BorderSizePixel = 0
+modulesScrolling.Position = UDim2.new(0, 0, 0, 60)
+modulesScrolling.Size = UDim2.new(1, 0, 1, -70)
+modulesScrolling.CanvasSize = UDim2.new(0, 0, 2, 0)
+modulesScrolling.ScrollBarThickness = 4
+modulesScrolling.ScrollBarImageColor3 = colors.accent
+modulesScrolling.AutomaticCanvasSize = Enum.AutomaticSize.Y
+modulesScrolling.ZIndex = 1003
+modulesScrolling.Parent = modulesPanel
+
+local modulesLayout = Instance.new("UIListLayout")
+modulesLayout.Parent = modulesScrolling
+modulesLayout.SortOrder = Enum.SortOrder.LayoutOrder
+modulesLayout.Padding = UDim.new(0, 8)
+modulesLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+-- ===== ПРАВАЯ ПАНЕЛЬ - ФУНКЦИИ =====
+local functionsPanel = Instance.new("Frame")
+functionsPanel.Name = "FunctionsPanel"
+functionsPanel.BackgroundColor3 = colors.panel
+functionsPanel.BorderSizePixel = 0
+functionsPanel.Size = UDim2.new(1, -240, 1, 0)
+functionsPanel.Position = UDim2.new(0, 235, 0, 0)
+functionsPanel.ZIndex = 1002
+functionsPanel.Parent = uiContainer
+
+-- Закругление правой панели
+local functionsCorner = Instance.new("UICorner")
+functionsCorner.CornerRadius = UDim.new(0, 12)
+functionsCorner.Parent = functionsPanel
+
+-- Тень внутри панели
+local functionsInner = Instance.new("Frame")
+functionsInner.Size = UDim2.new(1, -2, 1, -2)
+functionsInner.Position = UDim2.new(0, 1, 0, 1)
+functionsInner.BackgroundColor3 = Color3.new(0, 0, 0)
+functionsInner.BackgroundTransparency = 0.8
+functionsInner.BorderSizePixel = 0
+functionsInner.Parent = functionsPanel
+
+local functionsInnerCorner = Instance.new("UICorner")
+functionsInnerCorner.CornerRadius = UDim.new(0, 11)
+functionsInnerCorner.Parent = functionsInner
+
+-- Заголовок выбранного модуля
+local functionsTitle = Instance.new("TextLabel")
+functionsTitle.Name = "FunctionsTitle"
+functionsTitle.BackgroundTransparency = 1
+functionsTitle.Font = Enum.Font.GothamBold
+functionsTitle.Text = "▸ COMBAT"
+functionsTitle.TextColor3 = colors.accentLight
+functionsTitle.TextSize = 22
+functionsTitle.Position = UDim2.new(0, 20, 0, 20)
+functionsTitle.Size = UDim2.new(1, -40, 0, 35)
+functionsTitle.TextXAlignment = Enum.TextXAlignment.Left
+functionsTitle.ZIndex = 1003
+functionsTitle.Parent = functionsPanel
+
+-- Контейнер для функций
+local functionsScrolling = Instance.new("ScrollingFrame")
+functionsScrolling.Name = "FunctionsScrolling"
+functionsScrolling.BackgroundTransparency = 1
+functionsScrolling.BorderSizePixel = 0
+functionsScrolling.Position = UDim2.new(0, 20, 0, 65)
+functionsScrolling.Size = UDim2.new(1, -40, 1, -85)
+functionsScrolling.CanvasSize = UDim2.new(0, 0, 2, 0)
+functionsScrolling.ScrollBarThickness = 4
+functionsScrolling.ScrollBarImageColor3 = colors.accent
+functionsScrolling.AutomaticCanvasSize = Enum.AutomaticSize.Y
+functionsScrolling.ZIndex = 1003
+functionsScrolling.Parent = functionsPanel
+
+local functionsLayout = Instance.new("UIListLayout")
+functionsLayout.Parent = functionsScrolling
+functionsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+functionsLayout.Padding = UDim.new(0, 10)
+functionsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+-- ===== ПЕРЕМЕННЫЕ =====
+local currentModule = "COMBAT"
+local modules = {
+    "COMBAT", "MOVEMENT", "VISUALS", "PLAYER", 
+    "ESP", "MISC", "TELEPORT", "THEME"
 }
 
 local features = {
+    -- Combat
     aimbot = false,
     aimbotMethod = "Lerp (плавный)",
     aimbotRandomness = 0.1,
     teamCheck = true,
+    aimbotSpeed = 0.5,
+    aimbotFOV = 90,
+    aimbotShowFOV = false,
+    
+    -- Movement
     fly = false,
     flyMethod = 1,
+    flySpeed = 50,
     noclip = false,
     infJump = false,
-    fullbright = false,
-    blur = false,
-    clickTp = false,
-    noFog = false,
-    infiniteAmmo = false,
-    autoAttack = false,
-    autoAttackRange = 20,
-    godMode = false,
     speedEnabled = false,
     speedPower = 50,
     jumpEnabled = false,
     jumpPower = 100,
     
-    aimbotSpeed = 0.5,
-    aimbotFOV = 90,
-    aimbotShowFOV = false,
+    -- Visuals
+    fullbright = false,
+    blur = false,
+    noFog = false,
     
-    flySpeed = 50,
+    -- Player
+    clickTp = false,
+    godMode = false,
+    infiniteAmmo = false,
     
+    -- ESP
     espEnabled = false,
     espMode = "Обводка",
     espShowName = true,
@@ -177,1234 +229,150 @@ local features = {
     espTrailColor = Color3.fromRGB(100, 200, 255),
     espTrailTime = 5,
     
+    -- Misc
+    autoAttack = false,
+    autoAttackRange = 20,
+    particles = false,
+    particleType = "Шары 3D",
+    particleCount = 30,
+    
+    -- Teleport
     teleportPoints = {},
-    selectedTeleportPoint = nil,
+    
+    -- Theme
+    bgTransparency = 0.7,
+    columnsTransparency = 0,
+    buttonsTransparency = 0,
+    accentColor = colors.accent,
 }
 
--- Система телепортации
+local flyConnections = {}
+local espObjects = {}
+local trailObjects = {}
 local teleportPoints = {}
 local selectedTeleportPoint = nil
 
--- Dupe Items система
-local dupeItems = {}
+-- ===== ФУНКЦИИ СОЗДАНИЯ ЭЛЕМЕНТОВ =====
 
-local defaultBrightness = Lighting.Brightness
-local defaultClock = Lighting.ClockTime
-local defaultShadows = Lighting.GlobalShadows
-local defaultFogEnd = Lighting.FogEnd
-local defaultAmbient = Lighting.Ambient
-local defaultOutdoorAmbient = Lighting.OutdoorAmbient
-
-local themeSettings = {
-    bgDimTransparency = 0.5,
-    bgDimColor = Color3.fromRGB(0, 0, 0),
-    columnsTransparency = 0.1,
-    columnsColor = Color3.fromRGB(30, 30, 35),
-    buttonsTransparency = 0.2,
-    buttonsColor = Color3.fromRGB(40, 40, 45),
-    accentColor = Color3.fromRGB(60, 70, 120),
-    textColor = Color3.fromRGB(255, 255, 255),
-    secondaryTextColor = Color3.fromRGB(200, 200, 200),
-    brightness = 1,
-    miniBarEnabled = true,
-    miniBarShowFPS = true,
-    miniBarShowTime = true,
-    miniBarShowPing = true,
-}
-
-local fps = 60
-local ping = 0
-local currentTime = "00:00"
-local lastFPSUpdate = tick()
-local frameCount = 0
-
-RunService.RenderStepped:Connect(function()
-    frameCount = frameCount + 1
-    local now = tick()
-    if now - lastFPSUpdate >= 1 then
-        fps = frameCount
-        frameCount = 0
-        lastFPSUpdate = now
-    end
-end)
-
-local function getPing()
-    local success, result = pcall(function()
-        local stats = Stats
-        if stats then
-            local network = stats:FindFirstChild("Network")
-            if network then
-                local pingValue = network:FindFirstChild("Ping")
-                if pingValue then
-                    return math.floor(pingValue.Value * 1000)
-                end
+-- Функция создания кнопки модуля
+local function createModuleButton(name)
+    local btn = Instance.new("TextButton")
+    btn.Name = name .. "Btn"
+    btn.Size = UDim2.new(1, -20, 0, 45)
+    btn.BackgroundColor3 = (currentModule == name) and colors.accent or colors.panelLight
+    btn.Text = ""
+    btn.AutoButtonColor = false
+    btn.ZIndex = 1004
+    btn.Parent = modulesScrolling
+    
+    -- Закругление
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = btn
+    
+    -- Текст
+    local txt = Instance.new("TextLabel")
+    txt.BackgroundTransparency = 1
+    txt.Font = Enum.Font.GothamBold
+    txt.Text = name
+    txt.TextColor3 = (currentModule == name) and Color3.new(1, 1, 1) or colors.text
+    txt.TextSize = 15
+    txt.Position = UDim2.new(0, 15, 0, 0)
+    txt.Size = UDim2.new(1, -30, 1, 0)
+    txt.TextXAlignment = Enum.TextXAlignment.Left
+    txt.ZIndex = 1005
+    txt.Parent = btn
+    
+    -- Индикатор
+    local indicator = Instance.new("Frame")
+    indicator.Size = UDim2.new(0, 4, 1, -10)
+    indicator.Position = UDim2.new(1, -10, 0, 5)
+    indicator.BackgroundColor3 = (currentModule == name) and Color3.fromRGB(255, 255, 255) or colors.textDim
+    indicator.BorderSizePixel = 0
+    indicator.ZIndex = 1005
+    indicator.Parent = btn
+    
+    local indCorner = Instance.new("UICorner")
+    indCorner.CornerRadius = UDim.new(0, 2)
+    indCorner.Parent = indicator
+    
+    btn.MouseButton1Click:Connect(function()
+        -- Обновляем все кнопки
+        for _, child in ipairs(modulesScrolling:GetChildren()) do
+            if child:IsA("TextButton") then
+                child.BackgroundColor3 = colors.panelLight
+                child.TextLabel.TextColor3 = colors.text
+                child.Frame.BackgroundColor3 = colors.textDim
             end
         end
-        return 0
+        
+        -- Активируем текущую
+        btn.BackgroundColor3 = colors.accent
+        btn.TextLabel.TextColor3 = Color3.new(1, 1, 1)
+        btn.Frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        
+        currentModule = name
+        functionsTitle.Text = "▸ " .. name
+        updateFunctions()
     end)
-    return success and result or 0
+    
+    return btn
 end
 
-spawn(function()
-    while true do
-        local dateTime = os.date("*t")
-        currentTime = string.format("%02d:%02d", dateTime.hour, dateTime.min)
-        ping = getPing()
-        wait(0.5)
-    end
-end)
-
-local fovCircle = Drawing.new("Circle")
-fovCircle.Visible = false
-fovCircle.Radius = features.aimbotFOV
-fovCircle.Color = Color3.fromRGB(255, 255, 255)
-fovCircle.Thickness = 2
-fovCircle.NumSides = 60
-fovCircle.Filled = false
-fovCircle.ZIndex = 999999
-
--- Speed функция
-RunService.Heartbeat:Connect(function()
-    if features.speedEnabled and player.Character then
-        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-        if hrp and humanoid then
-            local moveDir = hrp.Velocity
-            if moveDir.Magnitude > 0 then
-                hrp.Velocity = moveDir.Unit * features.speedPower
-            end
-        end
-    end
-end)
-
--- Jump Power функция
-RunService.Heartbeat:Connect(function()
-    if features.jumpEnabled and player.Character then
-        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.JumpPower = features.jumpPower
-        end
-    end
-end)
-
--- No Fog функция
-if features.noFog then
-    Lighting.FogEnd = 100000
-else
-    Lighting.FogEnd = defaultFogEnd
-end
-
--- Infinite Ammo функция (поиск и модификация оружия)
-local function modifyWeaponAmmo(weapon, infinite)
-    if infinite then
-        local ammo = weapon:FindFirstChild("Ammo")
-        local maxAmmo = weapon:FindFirstChild("MaxAmmo")
-        if ammo then
-            ammo.Value = 999999
-        end
-        if maxAmmo then
-            maxAmmo.Value = 999999
-        end
-    end
-end
-
-RunService.Heartbeat:Connect(function()
-    if features.infiniteAmmo and player.Character then
-        local backpack = player.Backpack
-        for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") then
-                modifyWeaponAmmo(tool, true)
-            end
-        end
-        for _, tool in ipairs(player.Character:GetChildren()) do
-            if tool:IsA("Tool") then
-                modifyWeaponAmmo(tool, true)
-            end
-        end
-    end
-end)
-
--- Auto Attack функция
-local function findClosestEnemy(range)
-    local closest = nil
-    local closestDist = range
-    local myPos = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not myPos then return nil end
-    
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = p.Character.HumanoidRootPart
-            local dist = (myPos.Position - hrp.Position).Magnitude
-            if dist <= closestDist then
-                closest = p
-                closestDist = dist
-            end
-        end
-    end
-    return closest
-end
-
-RunService.Heartbeat:Connect(function()
-    if features.autoAttack and player.Character then
-        local target = findClosestEnemy(features.autoAttackRange)
-        if target and target.Character then
-            local hrp = target.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                -- Поворачиваемся к цели
-                workspace.CurrentCamera.CFrame = CFrame.lookAt(
-                    workspace.CurrentCamera.CFrame.Position,
-                    hrp.Position
-                )
-                
-                -- Ищем оружие и используем
-                for _, tool in ipairs(player.Character:GetChildren()) do
-                    if tool:IsA("Tool") then
-                        local events = tool:GetDescendants()
-                        for _, event in ipairs(events) do
-                            if event:IsA("RemoteEvent") then
-                                pcall(function()
-                                    event:FireServer("Activate")
-                                end)
-                            elseif event:IsA("BindableEvent") then
-                                pcall(function()
-                                    event:Fire()
-                                end)
-                            end
-                        end
-                        tool:Activate()
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- God Mode функция
-RunService.Heartbeat:Connect(function()
-    if features.godMode and player.Character then
-        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.Health = humanoid.MaxHealth
-            -- Защита от падения
-            if humanoid:GetState() == Enum.HumanoidStateType.Freefall then
-                humanoid:ChangeState(Enum.HumanoidStateType.Running)
-            end
-        end
-    end
-end)
-
--- Dupe Items функция
-local function findItems()
-    local items = {}
-    for _, v in ipairs(workspace:GetDescendants()) do
-        if v:IsA("Tool") or v:IsA("Part") and v:FindFirstChild("ClickDetector") then
-            table.insert(items, v)
-        end
-    end
-    return items
-end
-
--- Функция для рандомного смещения при аиме
-local function addRandomness(target, amount)
-    if amount <= 0 then return target end
-    local randomOffset = Vector3.new(
-        (math.random() * 2 - 1) * amount,
-        (math.random() * 2 - 1) * amount,
-        (math.random() * 2 - 1) * amount
-    )
-    return target + randomOffset
-end
-
--- 15 различных методов обхода для флая
-local flyConnections = {}
-local function updateFlyMethod()
-    -- Отключаем все предыдущие соединения
-    for _, conn in ipairs(flyConnections) do
-        conn:Disconnect()
-    end
-    flyConnections = {}
-    
-    if not features.fly or not player.Character then return end
-    
-    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-    if not hrp or not humanoid then return end
-    
-    -- Метод 1: Velocity (стандартный)
-    if features.flyMethod == 1 then
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then return end
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            hrp.Velocity = dir * features.flySpeed
-        end)
-        table.insert(flyConnections, conn)
-    
-    -- Метод 2: CFrame телепортация
-    elseif features.flyMethod == 2 then
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then return end
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            if dir.Magnitude > 0 then
-                hrp.CFrame = hrp.CFrame + dir.Unit * (features.flySpeed / 10)
-            end
-        end)
-        table.insert(flyConnections, conn)
-    
-    -- Метод 3: BodyVelocity + BodyGyro
-    elseif features.flyMethod == 3 then
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-        bodyVelocity.P = 1000
-        bodyVelocity.Parent = hrp
-        
-        local bodyGyro = Instance.new("BodyGyro")
-        bodyGyro.MaxTorque = Vector3.new(4000, 4000, 4000)
-        bodyGyro.P = 1000
-        bodyGyro.Parent = hrp
-        
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then
-                bodyVelocity:Destroy()
-                bodyGyro:Destroy()
-                return
-            end
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            bodyVelocity.Velocity = dir * features.flySpeed
-            bodyGyro.CFrame = cam
-        end)
-        table.insert(flyConnections, conn)
-        table.insert(flyConnections, {Disconnect = function() 
-            pcall(function() bodyVelocity:Destroy() end)
-            pcall(function() bodyGyro:Destroy() end)
-        end})
-    
-    -- Метод 4: Анти-гравитация + Velocity
-    elseif features.flyMethod == 4 then
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then return end
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            
-            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                hrp.Velocity = hrp.Velocity + Vector3.new(0, features.flySpeed, 0)
-            end
-            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-                hrp.Velocity = hrp.Velocity - Vector3.new(0, features.flySpeed, 0)
-            end
-            
-            hrp.Velocity = hrp.Velocity + dir * features.flySpeed
-        end)
-        table.insert(flyConnections, conn)
-    
-    -- Метод 5: Плавное движение (Tween)
-    elseif features.flyMethod == 5 then
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then return end
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            if dir.Magnitude > 0 then
-                local targetPos = hrp.Position + dir.Unit * (features.flySpeed / 5)
-                hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(targetPos), 0.3)
-            end
-        end)
-        table.insert(flyConnections, conn)
-    
-    -- Метод 6: BodyPosition
-    elseif features.flyMethod == 6 then
-        local bodyPosition = Instance.new("BodyPosition")
-        bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
-        bodyPosition.P = 2000
-        bodyPosition.Parent = hrp
-        
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then
-                bodyPosition:Destroy()
-                return
-            end
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                dir = dir + Vector3.new(0, 1, 0)
-            end
-            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-                dir = dir - Vector3.new(0, 1, 0)
-            end
-            
-            if dir.Magnitude > 0 then
-                bodyPosition.Position = hrp.Position + dir.Unit * (features.flySpeed / 5)
-            else
-                bodyPosition.Position = hrp.Position
-            end
-        end)
-        table.insert(flyConnections, conn)
-        table.insert(flyConnections, {Disconnect = function() 
-            pcall(function() bodyPosition:Destroy() end)
-        end})
-    
-    -- Метод 7: Иммунитет к гравитации (SetStateEnabled)
-    elseif features.flyMethod == 7 then
-        pcall(function()
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
-        end)
-        
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then return end
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            
-            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                hrp.Velocity = hrp.Velocity + Vector3.new(0, features.flySpeed, 0)
-            end
-            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-                hrp.Velocity = hrp.Velocity - Vector3.new(0, features.flySpeed, 0)
-            end
-            
-            hrp.Velocity = hrp.Velocity + dir * features.flySpeed
-        end)
-        table.insert(flyConnections, conn)
-    
-    -- Метод 8: Обход через VirtualUser (симуляция прыжков)
-    elseif features.flyMethod == 8 then
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then return end
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            
-            if hrp.Velocity.Y < -1 then
-                VirtualUser:Jump()
-            end
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            hrp.Velocity = Vector3.new(dir.X * features.flySpeed, hrp.Velocity.Y, dir.Z * features.flySpeed)
-            
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                hrp.Velocity = Vector3.new(hrp.Velocity.X, features.flySpeed, hrp.Velocity.Z)
-            end
-        end)
-        table.insert(flyConnections, conn)
-    
-    -- Метод 9: CFrame + BodyVelocity
-    elseif features.flyMethod == 9 then
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-        bodyVelocity.P = 1000
-        bodyVelocity.Parent = hrp
-        
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then
-                bodyVelocity:Destroy()
-                return
-            end
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                dir = dir + Vector3.new(0, 1, 0)
-            end
-            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-                dir = dir - Vector3.new(0, 1, 0)
-            end
-            
-            bodyVelocity.Velocity = dir * features.flySpeed
-            hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + cam.LookVector)
-        end)
-        table.insert(flyConnections, conn)
-        table.insert(flyConnections, {Disconnect = function() 
-            pcall(function() bodyVelocity:Destroy() end)
-        end})
-    
-    -- Метод 10: Рывки (Teleport)
-    elseif features.flyMethod == 10 then
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then return end
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                dir = dir + Vector3.new(0, 1, 0)
-            end
-            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-                dir = dir - Vector3.new(0, 1, 0)
-            end
-            
-            if dir.Magnitude > 0 then
-                hrp.CFrame = hrp.CFrame + dir.Unit * features.flySpeed
-            end
-        end)
-        table.insert(flyConnections, conn)
-    
-    -- Метод 11: Анти-кик (сброс скорости)
-    elseif features.flyMethod == 11 then
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then return end
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            
-            if math.abs(hrp.Velocity.Y) > 50 then
-                hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
-            end
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            hrp.Velocity = Vector3.new(dir.X * features.flySpeed, hrp.Velocity.Y, dir.Z * features.flySpeed)
-            
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                hrp.Velocity = Vector3.new(hrp.Velocity.X, features.flySpeed, hrp.Velocity.Z)
-            end
-        end)
-        table.insert(flyConnections, conn)
-    
-    -- Метод 12: BodyThrust
-    elseif features.flyMethod == 12 then
-        local bodyThrust = Instance.new("BodyThrust")
-        bodyThrust.Force = Vector3.new(0, 0, 0)
-        bodyThrust.Parent = hrp
-        
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then
-                bodyThrust:Destroy()
-                return
-            end
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                dir = dir + Vector3.new(0, 1, 0)
-            end
-            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-                dir = dir - Vector3.new(0, 1, 0)
-            end
-            
-            bodyThrust.Force = dir * features.flySpeed * 10
-        end)
-        table.insert(flyConnections, conn)
-        table.insert(flyConnections, {Disconnect = function() 
-            pcall(function() bodyThrust:Destroy() end)
-        end})
-    
-    -- Метод 13: Комбинация методов
-    elseif features.flyMethod == 13 then
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-        bodyVelocity.P = 1000
-        bodyVelocity.Parent = hrp
-        
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then
-                bodyVelocity:Destroy()
-                return
-            end
-            
-            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                hrp.CFrame = hrp.CFrame + Vector3.new(0, features.flySpeed / 10, 0)
-            end
-            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-                hrp.CFrame = hrp.CFrame - Vector3.new(0, features.flySpeed / 10, 0)
-            end
-            
-            bodyVelocity.Velocity = dir * features.flySpeed
-        end)
-        table.insert(flyConnections, conn)
-        table.insert(flyConnections, {Disconnect = function() 
-            pcall(function() bodyVelocity:Destroy() end)
-        end})
-    
-    -- Метод 14: Плавное ускорение
-    elseif features.flyMethod == 14 then
-        local currentVel = Vector3.new()
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then return end
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                dir = dir + Vector3.new(0, 1, 0)
-            end
-            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-                dir = dir - Vector3.new(0, 1, 0)
-            end
-            
-            local targetVel = dir * features.flySpeed
-            currentVel = currentVel:Lerp(targetVel, 0.1)
-            hrp.Velocity = currentVel
-        end)
-        table.insert(flyConnections, conn)
-    
-    -- Метод 15: Максимальный обход
-    elseif features.flyMethod == 15 then
-        pcall(function()
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
-        end)
-        
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-        bodyVelocity.P = 10000
-        bodyVelocity.Parent = hrp
-        
-        local bodyGyro = Instance.new("BodyGyro")
-        bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-        bodyGyro.P = 10000
-        bodyGyro.Parent = hrp
-        
-        local antiGravity = Instance.new("BodyForce")
-        antiGravity.Force = Vector3.new(0, workspace.Gravity * hrp:GetMass(), 0)
-        antiGravity.Parent = hrp
-        
-        local conn = RunService.Heartbeat:Connect(function()
-            if not features.fly or not player.Character then
-                bodyVelocity:Destroy()
-                bodyGyro:Destroy()
-                antiGravity:Destroy()
-                return
-            end
-            
-            local dir = Vector3.new()
-            local cam = workspace.CurrentCamera.CFrame
-            
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-            
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                dir = dir + Vector3.new(0, 1, 0)
-            end
-            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-                dir = dir - Vector3.new(0, 1, 0)
-            end
-            
-            bodyVelocity.Velocity = dir * features.flySpeed
-            bodyGyro.CFrame = cam
-        end)
-        table.insert(flyConnections, conn)
-        table.insert(flyConnections, {Disconnect = function() 
-            pcall(function() bodyVelocity:Destroy() end)
-            pcall(function() bodyGyro:Destroy() end)
-            pcall(function() antiGravity:Destroy() end)
-        end})
-    end
-end
-
--- Aimbot с разными методами и рандомным движением
-RunService.RenderStepped:Connect(function()
-    if not features.aimbot then return end
-    
-    if features.aimbotShowFOV then
-        fovCircle.Visible = true
-        fovCircle.Radius = features.aimbotFOV
-        fovCircle.Position = UIS:GetMouseLocation()
-    else
-        fovCircle.Visible = false
-    end
-    
-    if not UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then return end
-    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
-    
-    local closest = nil
-    local shortest = math.huge
-    local mousePos = UIS:GetMouseLocation()
-    
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
-            -- Проверка на друзей
-            if features.teamCheck then
-                local playerTeam = p.Team
-                local myTeam = player.Team
-                
-                if playerTeam and myTeam and playerTeam == myTeam then
-                    continue
-                end
-                
-                local success, isFriend = pcall(function()
-                    return player:IsFriendsWith(p.UserId)
-                end)
-                if success and isFriend then
-                    continue
-                end
-            end
-            
-            if features.aimbotShowFOV then
-                local headPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(p.Character.Head.Position)
-                if onScreen then
-                    local screenPos = Vector2.new(headPos.X, headPos.Y)
-                    local dist = (screenPos - mousePos).Magnitude
-                    if dist > features.aimbotFOV then continue end
-                end
-            end
-            
-            local dist = (player.Character.HumanoidRootPart.Position - p.Character.Head.Position).Magnitude
-            if dist < shortest then
-                shortest = dist
-                closest = p.Character.Head
-            end
-        end
-    end
-    
-    if closest then
-        local targetPos = closest.Position
-        -- Добавляем рандомное движение если включено
-        targetPos = addRandomness(targetPos, features.aimbotRandomness)
-        
-        local lookAt = CFrame.new(workspace.CurrentCamera.CFrame.Position, targetPos)
-        
-        -- Разные методы аима
-        if features.aimbotMethod == "Lerp (плавный)" then
-            workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(lookAt, features.aimbotSpeed)
-        elseif features.aimbotMethod == "Мгновенный" then
-            workspace.CurrentCamera.CFrame = lookAt
-        elseif features.aimbotMethod == "Плавный+ (оптимизированный)" then
-            local smoothness = features.aimbotSpeed * 0.5
-            workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(lookAt, smoothness)
-        elseif features.aimbotMethod == "С инерцией" then
-            local currentCF = workspace.CurrentCamera.CFrame
-            local newCF = currentCF:Lerp(lookAt, features.aimbotSpeed)
-            -- Добавляем небольшую инерцию
-            local inertia = (newCF.Position - currentCF.Position) * 0.5
-            workspace.CurrentCamera.CFrame = CFrame.new(currentCF.Position + inertia, targetPos)
-        elseif features.aimbotMethod == "Случайный трассировщик" then
-            -- Добавляем случайные отклонения для более естественного вида
-            local randomOffset = Vector3.new(
-                (math.random() - 0.5) * features.aimbotRandomness * 2,
-                (math.random() - 0.5) * features.aimbotRandomness * 2,
-                (math.random() - 0.5) * features.aimbotRandomness * 2
-            )
-            local randomizedLookAt = CFrame.new(workspace.CurrentCamera.CFrame.Position, targetPos + randomOffset)
-            workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(randomizedLookAt, features.aimbotSpeed)
-        end
-    end
-end)
-
--- Обновление метода флая при изменении
-local function setFlyMethod(method)
-    features.flyMethod = method
-    if features.fly then
-        updateFlyMethod()
-    end
-end
-
-RunService.Stepped:Connect(function()
-    if not features.noclip or not player.Character then return end
-    for _, p in ipairs(player.Character:GetDescendants()) do
-        if p:IsA("BasePart") then
-            p.CanCollide = false
-        end
-    end
-end)
-
-UIS.JumpRequest:Connect(function()
-    if not features.infJump or not player.Character then return end
-    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    local hum = player.Character:FindFirstChildOfClass("Humanoid")
-    if hrp and hum then
-        hrp.Velocity = Vector3.new(hrp.Velocity.X, hum.JumpPower, hrp.Velocity.Z)
-    end
-end)
-
-UIS.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if not features.clickTp then return end
-    if input.UserInputType == Enum.UserInputType.MouseButton1 and UIS:IsKeyDown(Enum.KeyCode.F) then
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local mouse = player:GetMouse()
-            player.Character:MoveTo(mouse.Hit.Position)
-        end
-    end
-end)
-
--- ESP система с трейлами
-local espObjects = {}
-local trailObjects = {}
-local playerPositions = {}
-
-local function updateTrails()
-    for _, trail in ipairs(trailObjects) do
-        pcall(function() trail:Destroy() end)
-    end
-    trailObjects = {}
-    
-    if not features.espEnabled or not features.espShowTrails then return end
-    
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p == player then continue end
-        if not p.Character then continue end
-        
-        local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local trail = Instance.new("Trail")
-            trail.Parent = hrp
-            trail.Color = ColorSequence.new(features.espTrailColor)
-            trail.Lifetime = features.espTrailTime
-            trail.Transparency = NumberSequence.new(0.5)
-            trail.Width = 0.5
-            trail.FaceCamera = true
-            trail.Attachment0 = Instance.new("Attachment")
-            trail.Attachment0.Parent = hrp
-            trail.Attachment0.Position = Vector3.new(0, 2, 0)
-            trail.Attachment1 = Instance.new("Attachment")
-            trail.Attachment1.Parent = hrp
-            trail.Attachment1.Position = Vector3.new(0, -2, 0)
-            
-            table.insert(trailObjects, trail)
-            table.insert(trailObjects, trail.Attachment0)
-            table.insert(trailObjects, trail.Attachment1)
-        end
-    end
-end
-
-local function createESPText(p, text, color, offset)
-    local billboard = Instance.new("BillboardGui")
-    billboard.Parent = p.Character:FindFirstChild("Head") or p.Character:FindFirstChild("HumanoidRootPart")
-    billboard.Size = UDim2.new(0, 200, 0, 50)
-    billboard.StudsOffset = Vector3.new(0, offset, 0)
-    billboard.AlwaysOnTop = true
-    billboard.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    billboard.Name = "ESP_" .. HttpService:GenerateGUID(false)
-    
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Parent = billboard
-    textLabel.Size = UDim2.new(1, 0, 1, 0)
-    textLabel.BackgroundTransparency = 1
-    textLabel.Text = text
-    textLabel.TextColor3 = color
-    textLabel.TextStrokeTransparency = 0.5
-    textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-    textLabel.Font = Enum.Font.Gotham
-    textLabel.TextSize = 14
-    textLabel.TextScaled = true
-    
-    return billboard
-end
-
-local function updateESP()
-    for _, obj in ipairs(espObjects) do
-        pcall(function() obj:Destroy() end)
-    end
-    espObjects = {}
-    
-    updateTrails()
-    
-    if not features.espEnabled then return end
-    
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p == player then continue end
-        if not p.Character then continue end
-        
-        local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-        local head = p.Character:FindFirstChild("Head")
-        local hum = p.Character:FindFirstChildOfClass("Humanoid")
-        
-        if hrp and head and hum then
-            local espColor = features.espColor
-            if features.teamCheck then
-                local playerTeam = p.Team
-                local myTeam = player.Team
-                
-                if playerTeam and myTeam and playerTeam == myTeam then
-                    espColor = features.espTeamColor
-                end
-                
-                local success, isFriend = pcall(function()
-                    return player:IsFriendsWith(p.UserId)
-                end)
-                if success and isFriend then
-                    espColor = features.espTeamColor
-                end
-            end
-            
-            if features.espMode == "Обводка" then
-                local highlight = Instance.new("Highlight")
-                highlight.Parent = p.Character
-                highlight.FillColor = espColor
-                highlight.FillTransparency = 0.5
-                highlight.OutlineColor = espColor
-                highlight.OutlineTransparency = 0
-                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                table.insert(espObjects, highlight)
-                
-            elseif features.espMode == "Хитбокс" then
-                local parts = {hrp, head}
-                for _, part in ipairs(p.Character:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        local box = Instance.new("SelectionBox")
-                        box.Parent = part
-                        box.Adornee = part
-                        box.Color3 = espColor
-                        box.LineThickness = 0.1
-                        box.Transparency = 0.5
-                        box.SurfaceTransparency = 0.7
-                        table.insert(espObjects, box)
-                    end
-                end
-                
-            elseif features.espMode == "Палочки" then
-                local box = Instance.new("SelectionBox")
-                box.Parent = hrp
-                box.Adornee = hrp
-                box.Color3 = espColor
-                box.LineThickness = 0.05
-                box.Transparency = 0
-                box.SurfaceTransparency = 1
-                table.insert(espObjects, box)
-                
-                local line = Instance.new("SelectionBox")
-                line.Parent = head
-                line.Adornee = head
-                line.Color3 = espColor
-                line.LineThickness = 0.05
-                line.Transparency = 0
-                line.SurfaceTransparency = 1
-                table.insert(espObjects, line)
-            end
-            
-            -- Текстовая информация
-            local yOffset = 3
-            if features.espShowName then
-                local nameText = createESPText(p, p.Name, Color3.fromRGB(255, 255, 255), yOffset)
-                table.insert(espObjects, nameText)
-                yOffset = yOffset + 2
-            end
-            
-            if features.espShowHealth then
-                local healthText = createESPText(p, tostring(math.floor(hum.Health)) .. " HP", 
-                    hum.Health > 50 and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0), yOffset)
-                table.insert(espObjects, healthText)
-                yOffset = yOffset + 2
-            end
-            
-            if features.espShowDistance and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                local dist = math.floor((player.Character.HumanoidRootPart.Position - hrp.Position).Magnitude)
-                local distText = createESPText(p, tostring(dist) .. " studs", Color3.fromRGB(200, 200, 200), yOffset)
-                table.insert(espObjects, distText)
-            end
-        end
-    end
-end
-
--- Particles система - рандомные частицы по всей прогруженной территории
-local particles = {}
-local particleFeatures = {
-    enabled = false,
-    particleType = "Шары 3D",
-    count = 30,
-    size = 0.5,
-    speed = 10,
-    spread = 100,
-    lifetime = 3,
-    color = Color3.fromRGB(100, 200, 255),
-    floating = true,
-    glow = true
-}
-
-local function createRandomParticle()
-    if not player.Character then return nil end
-    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return nil end
-    
-    -- Получаем все загруженные части
-    local loadedParts = workspace:GetDescendants()
-    local validPositions = {}
-    
-    -- Собираем позиции загруженных объектов
-    for _, part in ipairs(loadedParts) do
-        if part:IsA("BasePart") and part.Position.Magnitude < 10000 then
-            table.insert(validPositions, part.Position)
-        end
-    end
-    
-    -- Если нашли позиции, спавним рядом с одной из них
-    local spawnPos
-    if #validPositions > 0 then
-        local randomPartPos = validPositions[math.random(1, #validPositions)]
-        -- Случайное смещение от выбранной части
-        spawnPos = randomPartPos + Vector3.new(
-            math.random(-particleFeatures.spread, particleFeatures.spread),
-            math.random(-particleFeatures.spread, particleFeatures.spread),
-            math.random(-particleFeatures.spread, particleFeatures.spread)
-        )
-    else
-        -- Если нет частей, спавним вокруг игрока
-        local angle = math.random() * 2 * math.pi
-        local radius = math.random(10, particleFeatures.spread)
-        local height = math.random(-particleFeatures.spread, particleFeatures.spread)
-        
-        spawnPos = hrp.Position + Vector3.new(
-            math.cos(angle) * radius,
-            height,
-            math.sin(angle) * radius
-        )
-    end
-    
-    -- Полностью случайное направление во все стороны
-    local dir = Vector3.new(
-        math.random(-100, 100) / 100,
-        math.random(-100, 100) / 100,
-        math.random(-100, 100) / 100
-    ).Unit
-    
-    -- Цвет в зависимости от типа
-    local color = particleFeatures.color
-    if particleFeatures.particleType == "Огненные" then
-        color = Color3.fromRGB(255, math.random(50, 150), 0)
-    elseif particleFeatures.particleType == "Ледяные" then
-        color = Color3.fromRGB(150, math.random(200, 255), 255)
-    elseif particleFeatures.particleType == "Радужные" then
-        color = Color3.fromHSV(math.random(), 1, 1)
-    elseif particleFeatures.particleType == "Шары 3D" then
-        color = Color3.fromRGB(100, math.random(150, 255), 255)
-    elseif particleFeatures.particleType == "Неоновые" then
-        color = Color3.fromRGB(math.random(100, 255), math.random(100, 255), math.random(100, 255))
-    elseif particleFeatures.particleType == "Плавающие" then
-        color = Color3.fromRGB(150, 150, 255)
-    end
-    
-    -- Создание частицы (шар)
-    local ball = Instance.new("Part")
-    ball.Parent = workspace
-    ball.Size = Vector3.new(particleFeatures.size, particleFeatures.size, particleFeatures.size)
-    ball.Position = spawnPos
-    ball.Anchored = false
-    ball.CanCollide = false
-    ball.Transparency = 0.2
-    ball.BrickColor = BrickColor.new(color)
-    ball.Material = Enum.Material.Neon
-    ball.Shape = Enum.PartType.Ball
-    ball.TopSurface = Enum.SurfaceType.Smooth
-    ball.BottomSurface = Enum.SurfaceType.Smooth
-    
-    -- Свечение
-    local glow = Instance.new("Part")
-    glow.Parent = workspace
-    glow.Size = Vector3.new(particleFeatures.size * 2, particleFeatures.size * 2, particleFeatures.size * 2)
-    glow.Position = spawnPos
-    glow.Anchored = false
-    glow.CanCollide = false
-    glow.Transparency = 0.6
-    glow.BrickColor = BrickColor.new(color)
-    glow.Material = Enum.Material.Neon
-    glow.Shape = Enum.PartType.Ball
-    glow.TopSurface = Enum.SurfaceType.Smooth
-    glow.BottomSurface = Enum.SurfaceType.Smooth
-    
-    -- Точечный свет
-    local light = Instance.new("PointLight")
-    light.Parent = ball
-    light.Color = color
-    light.Range = particleFeatures.size * 15
-    light.Brightness = 2
-    light.Shadows = false
-    
-    -- Установка скорости в случайном направлении
-    if particleFeatures.floating then
-        -- Плавающие частицы - медленно поднимаются вверх
-        ball.Velocity = Vector3.new(dir.X * particleFeatures.speed * 0.5, 
-                                    particleFeatures.speed * 0.8, 
-                                    dir.Z * particleFeatures.speed * 0.5)
-        glow.Velocity = ball.Velocity
-    else
-        ball.Velocity = dir * particleFeatures.speed
-        glow.Velocity = dir * particleFeatures.speed
-    end
-    
-    -- Удаление через время
-    game:GetService("Debris"):AddItem(ball, particleFeatures.lifetime)
-    game:GetService("Debris"):AddItem(glow, particleFeatures.lifetime)
-    game:GetService("Debris"):AddItem(light, particleFeatures.lifetime)
-    
-    return {ball, glow, light}
-end
-
--- Запуск генерации частиц
-spawn(function()
-    while true do
-        if particleFeatures.enabled and player.Character then
-            -- Создаем много частиц за раз
-            for i = 1, math.floor(particleFeatures.count) do
-                createRandomParticle()
-                wait(0.05) -- Небольшая задержка между созданием
-            end
-        end
-        wait(particleFeatures.lifetime / 1.5)
-    end
-end)
-
--- Функция создания кнопки
-local function createButton(col, text, isPremium, callback)
+-- Функция создания кнопки-переключателя
+local function createToggleButton(text, default, callback)
     local btn = Instance.new("TextButton")
     btn.Name = text .. "Btn"
-    btn.AutoButtonColor = false
-    btn.BackgroundColor3 = themeSettings.buttonsColor
-    btn.BackgroundTransparency = themeSettings.buttonsTransparency
-    btn.BorderSizePixel = 0
-    btn.Size = UDim2.new(1, -20, 0, 28)
+    btn.Size = UDim2.new(1, 0, 0, 40)
+    btn.BackgroundColor3 = colors.panelLight
     btn.Text = ""
+    btn.AutoButtonColor = false
     btn.ZIndex = 1004
-    btn.Parent = col.scrolling
+    btn.Parent = functionsScrolling
 
+    -- Закругление
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
+    corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = btn
 
+    -- Текст
     local txt = Instance.new("TextLabel")
     txt.BackgroundTransparency = 1
     txt.Font = Enum.Font.Gotham
     txt.Text = text
-    txt.TextColor3 = isPremium and Color3.fromRGB(255, 200, 100) or themeSettings.textColor
+    txt.TextColor3 = colors.text
     txt.TextSize = 14
-    txt.Position = UDim2.new(0, 10, 0, 0)
-    txt.Size = UDim2.new(1, -50, 1, 0)
+    txt.Position = UDim2.new(0, 15, 0, 0)
+    txt.Size = UDim2.new(1, -70, 1, 0)
     txt.TextXAlignment = Enum.TextXAlignment.Left
     txt.ZIndex = 1005
     txt.Parent = btn
 
+    -- Статус
     local status = Instance.new("TextLabel")
     status.BackgroundTransparency = 1
-    status.Font = Enum.Font.Gotham
-    status.Text = isPremium and "PREM" or "OFF"
-    status.TextColor3 = isPremium and Color3.fromRGB(255, 200, 100) or Color3.fromRGB(150, 150, 150)
-    status.TextSize = isPremium and 10 or 12
-    status.Position = UDim2.new(1, -45, 0, 0)
-    status.Size = UDim2.new(0, 40, 1, 0)
+    status.Font = Enum.Font.GothamBold
+    status.Text = default and "ON" or "OFF"
+    status.TextColor3 = default and colors.toggleOn or colors.textDim
+    status.TextSize = 12
+    status.Position = UDim2.new(1, -55, 0, 0)
+    status.Size = UDim2.new(0, 50, 1, 0)
     status.TextXAlignment = Enum.TextXAlignment.Right
     status.ZIndex = 1005
     status.Parent = btn
 
-    local enabled = false
+    local enabled = default or false
     
     btn.MouseButton1Click:Connect(function()
-        if isPremium then return end
-        
         enabled = not enabled
         if enabled then
-            btn.BackgroundColor3 = themeSettings.accentColor
+            btn.BackgroundColor3 = colors.accent
             status.Text = "ON"
-            status.TextColor3 = Color3.fromRGB(100, 255, 100)
+            status.TextColor3 = colors.toggleOn
         else
-            btn.BackgroundColor3 = themeSettings.buttonsColor
+            btn.BackgroundColor3 = colors.panelLight
             status.Text = "OFF"
-            status.TextColor3 = Color3.fromRGB(150, 150, 150)
+            status.TextColor3 = colors.textDim
         end
         
         if callback then
@@ -1415,58 +383,59 @@ local function createButton(col, text, isPremium, callback)
     return {btn = btn, txt = txt, status = status, enabled = enabled}
 end
 
-local function createSlider(col, text, min, max, default, callback, suffix)
+-- Функция создания слайдера
+local function createSlider(text, min, max, default, callback, suffix)
     suffix = suffix or ""
     local container = Instance.new("Frame")
     container.Name = text .. "Slider"
     container.BackgroundTransparency = 1
-    container.Size = UDim2.new(1, -20, 0, 45)
+    container.Size = UDim2.new(1, 0, 0, 50)
     container.ZIndex = 1004
-    container.Parent = col.scrolling
+    container.Parent = functionsScrolling
 
     local label = Instance.new("TextLabel")
     label.BackgroundTransparency = 1
     label.Font = Enum.Font.Gotham
     label.Text = text
-    label.TextColor3 = themeSettings.secondaryTextColor
+    label.TextColor3 = colors.text
     label.TextSize = 14
-    label.Position = UDim2.new(0, 0, 0, 0)
-    label.Size = UDim2.new(1, -50, 0, 20)
+    label.Position = UDim2.new(0, 5, 0, 0)
+    label.Size = UDim2.new(1, -70, 0, 22)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 1005
     label.Parent = container
 
     local valueLabel = Instance.new("TextLabel")
     valueLabel.BackgroundTransparency = 1
-    valueLabel.Font = Enum.Font.Gotham
+    valueLabel.Font = Enum.Font.GothamBold
     valueLabel.Text = tostring(default) .. suffix
-    valueLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+    valueLabel.TextColor3 = colors.accentLight
     valueLabel.TextSize = 14
-    valueLabel.Position = UDim2.new(1, -50, 0, 0)
-    valueLabel.Size = UDim2.new(0, 50, 0, 20)
+    valueLabel.Position = UDim2.new(1, -70, 0, 0)
+    valueLabel.Size = UDim2.new(0, 70, 0, 22)
     valueLabel.TextXAlignment = Enum.TextXAlignment.Right
     valueLabel.ZIndex = 1005
     valueLabel.Parent = container
 
     local sliderBg = Instance.new("Frame")
-    sliderBg.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
-    sliderBg.Position = UDim2.new(0, 0, 0, 25)
-    sliderBg.Size = UDim2.new(1, 0, 0, 8)
+    sliderBg.BackgroundColor3 = colors.panelLight
+    sliderBg.Position = UDim2.new(0, 5, 0, 28)
+    sliderBg.Size = UDim2.new(1, -10, 0, 6)
     sliderBg.ZIndex = 1004
     sliderBg.Parent = container
 
     local bgCorner = Instance.new("UICorner")
-    bgCorner.CornerRadius = UDim.new(0, 4)
+    bgCorner.CornerRadius = UDim.new(0, 3)
     bgCorner.Parent = sliderBg
 
     local slider = Instance.new("Frame")
-    slider.BackgroundColor3 = themeSettings.accentColor
+    slider.BackgroundColor3 = colors.accentLight
     slider.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
     slider.ZIndex = 1005
     slider.Parent = sliderBg
 
     local sliderCorner = Instance.new("UICorner")
-    sliderCorner.CornerRadius = UDim.new(0, 4)
+    sliderCorner.CornerRadius = UDim.new(0, 3)
     sliderCorner.Parent = slider
 
     local dragButton = Instance.new("TextButton")
@@ -1496,7 +465,7 @@ local function createSlider(col, text, min, max, default, callback, suffix)
             local size = sliderBg.AbsoluteSize.X
             
             local relative = math.clamp((mousePos.X - absPos.X) / size, 0, 1)
-            slider.Size = UDim2.new(relative, 0, 1, 0)
+            slider:TweenSize(UDim2.new(relative, 0, 1, 0), "Out", "Quad", 0.1, true)
             
             value = min + (max - min) * relative
             value = math.floor(value * 100) / 100
@@ -1511,94 +480,39 @@ local function createSlider(col, text, min, max, default, callback, suffix)
     return container
 end
 
-local function createToggle(col, text, default, callback)
-    local container = Instance.new("Frame")
-    container.Name = text .. "Toggle"
-    container.BackgroundTransparency = 1
-    container.Size = UDim2.new(1, -20, 0, 25)
-    container.ZIndex = 1004
-    container.Parent = col.scrolling
-
-    local label = Instance.new("TextLabel")
-    label.BackgroundTransparency = 1
-    label.Font = Enum.Font.Gotham
-    label.Text = text
-    label.TextColor3 = themeSettings.secondaryTextColor
-    label.TextSize = 14
-    label.Position = UDim2.new(0, 0, 0, 0)
-    label.Size = UDim2.new(1, -40, 1, 0)
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.ZIndex = 1005
-    label.Parent = container
-
-    local toggleBtn = Instance.new("TextButton")
-    toggleBtn.BackgroundColor3 = default and themeSettings.accentColor or Color3.fromRGB(50, 50, 55)
-    toggleBtn.Position = UDim2.new(1, -30, 0, 2)
-    toggleBtn.Size = UDim2.new(0, 25, 0, 20)
-    toggleBtn.Text = default and "ON" or "OFF"
-    toggleBtn.TextColor3 = default and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(150, 150, 150)
-    toggleBtn.TextSize = 10
-    toggleBtn.ZIndex = 1006
-    toggleBtn.Parent = container
-
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 4)
-    btnCorner.Parent = toggleBtn
-
-    local state = default
-
-    toggleBtn.MouseButton1Click:Connect(function()
-        state = not state
-        if state then
-            toggleBtn.BackgroundColor3 = themeSettings.accentColor
-            toggleBtn.Text = "ON"
-            toggleBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
-        else
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
-            toggleBtn.Text = "OFF"
-            toggleBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-        end
-        if callback then
-            callback(state)
-        end
-    end)
-
-    return container
-end
-
-local function createDropdown(col, text, options, default, callback)
+-- Функция создания дропдауна
+local function createDropdown(text, options, default, callback)
     local container = Instance.new("Frame")
     container.Name = text .. "Dropdown"
     container.BackgroundTransparency = 1
-    container.Size = UDim2.new(1, -20, 0, 45)
+    container.Size = UDim2.new(1, 0, 0, 50)
     container.ZIndex = 1004
-    container.Parent = col.scrolling
+    container.Parent = functionsScrolling
 
     local label = Instance.new("TextLabel")
     label.BackgroundTransparency = 1
     label.Font = Enum.Font.Gotham
     label.Text = text
-    label.TextColor3 = themeSettings.secondaryTextColor
+    label.TextColor3 = colors.text
     label.TextSize = 14
-    label.Position = UDim2.new(0, 0, 0, 0)
-    label.Size = UDim2.new(1, -60, 0, 20)
+    label.Position = UDim2.new(0, 5, 0, 0)
+    label.Size = UDim2.new(1, -10, 0, 22)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 1005
     label.Parent = container
 
     local selectBtn = Instance.new("TextButton")
-    selectBtn.BackgroundColor3 = themeSettings.buttonsColor
-    selectBtn.BackgroundTransparency = themeSettings.buttonsTransparency
-    selectBtn.Position = UDim2.new(0, 0, 0, 25)
-    selectBtn.Size = UDim2.new(1, 0, 0, 20)
+    selectBtn.BackgroundColor3 = colors.panelLight
+    selectBtn.Position = UDim2.new(0, 5, 0, 25)
+    selectBtn.Size = UDim2.new(1, -10, 0, 25)
     selectBtn.Text = default or options[1]
-    selectBtn.TextColor3 = themeSettings.textColor
-    selectBtn.TextSize = 12
+    selectBtn.TextColor3 = colors.text
+    selectBtn.TextSize = 13
     selectBtn.ZIndex = 1006
     selectBtn.Parent = container
 
     local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 4)
+    btnCorner.CornerRadius = UDim.new(0, 6)
     btnCorner.Parent = selectBtn
 
     local currentIndex = 1
@@ -1614,731 +528,225 @@ local function createDropdown(col, text, options, default, callback)
         selectBtn.Text = options[currentIndex]
         if callback then
             callback(options[currentIndex])
-            if text == "ESP Mode" then
-                features.espMode = options[currentIndex]
-                updateESP()
-            elseif text == "Particle Type" then
-                particleFeatures.particleType = options[currentIndex]
-            elseif text == "Aimbot Method" then
-                features.aimbotMethod = options[currentIndex]
-            elseif text == "Fly Method" then
-                features.flyMethod = currentIndex
-                if features.fly then
-                    updateFlyMethod()
-                end
-            end
         end
     end)
 
     return selectBtn
 end
 
-local function createColorPicker(col, text, defaultColor, callback)
-    local container = Instance.new("Frame")
-    container.Name = text .. "Color"
-    container.BackgroundTransparency = 1
-    container.Size = UDim2.new(1, -20, 0, 25)
-    container.ZIndex = 1004
-    container.Parent = col.scrolling
-
-    local label = Instance.new("TextLabel")
-    label.BackgroundTransparency = 1
-    label.Font = Enum.Font.Gotham
-    label.Text = text
-    label.TextColor3 = themeSettings.secondaryTextColor
-    label.TextSize = 14
-    label.Position = UDim2.new(0, 0, 0, 0)
-    label.Size = UDim2.new(1, -40, 1, 0)
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.ZIndex = 1005
-    label.Parent = container
-
-    local colorBtn = Instance.new("TextButton")
-    colorBtn.BackgroundColor3 = defaultColor
-    colorBtn.Position = UDim2.new(1, -30, 0, 2)
-    colorBtn.Size = UDim2.new(0, 25, 0, 20)
-    colorBtn.Text = ""
-    colorBtn.ZIndex = 1006
-    colorBtn.Parent = container
-
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 4)
-    btnCorner.Parent = colorBtn
-
-    local colors = {
-        Color3.fromRGB(255, 80, 80),
-        Color3.fromRGB(80, 140, 255),
-        Color3.fromRGB(80, 255, 80),
-        Color3.fromRGB(255, 255, 80),
-        Color3.fromRGB(255, 80, 255),
-        Color3.fromRGB(255, 255, 255),
-    }
-    local colorIndex = 1
-
-    colorBtn.MouseButton1Click:Connect(function()
-        colorIndex = colorIndex % #colors + 1
-        colorBtn.BackgroundColor3 = colors[colorIndex]
-        if callback then
-            callback(colors[colorIndex])
-            if text == "ESP Color" then
-                features.espColor = colors[colorIndex]
-                updateESP()
-            elseif text == "Tracer Color" then
-                features.espTracerColor = colors[colorIndex]
-                updateESP()
-            elseif text == "Team Color" then
-                features.espTeamColor = colors[colorIndex]
-                updateESP()
-            elseif text == "Trail Color" then
-                features.espTrailColor = colors[colorIndex]
-                updateESP()
-            elseif text == "Particle Color" then
-                particleFeatures.color = colors[colorIndex]
-            elseif text == "Акцент цвет" then
-                themeSettings.accentColor = colors[colorIndex]
-            end
-        end
-    end)
-
-    return container
+-- ===== СОЗДАНИЕ КНОПОК МОДУЛЕЙ =====
+for _, module in ipairs(modules) do
+    createModuleButton(module)
 end
 
--- COMBAT
-local aimbotBtn = createButton(cols.Combat, "Aimbot 360", false, function(on) features.aimbot = on end)
-createDropdown(cols.Combat, "Aimbot Method", {"Lerp (плавный)", "Мгновенный", "Плавный+ (оптимизированный)", "С инерцией", "Случайный трассировщик"}, "Lerp (плавный)", function(val) features.aimbotMethod = val end)
-createSlider(cols.Combat, "Рандомность аима", 0, 0.5, 0.1, function(val) features.aimbotRandomness = val end, "")
-createSlider(cols.Combat, "Скорость", 0.1, 1, 0.5, function(val) features.aimbotSpeed = val end, "")
-createSlider(cols.Combat, "FOV", 30, 180, 90, function(val) features.aimbotFOV = val end, "°")
-createToggle(cols.Combat, "Показать FOV", false, function(on) features.aimbotShowFOV = on end)
-local teamCheckBtn = createButton(cols.Combat, "Team Check (друзья)", false, function(on) 
-    features.teamCheck = on 
-    updateESP()
-end)
-
--- MOVEMENT
-local flyBtn = createButton(cols.Movement, "Fly", false, function(on) 
-    features.fly = on
-    if on then
-        updateFlyMethod()
-    else
-        for _, conn in ipairs(flyConnections) do
-            pcall(function() conn:Disconnect() end)
-        end
-        flyConnections = {}
-    end
-end)
-createDropdown(cols.Movement, "Fly Method", {"Метод 1: Velocity", "Метод 2: CFrame", "Метод 3: BodyVelocity+BodyGyro", "Метод 4: Анти-гравитация", "Метод 5: Tween", "Метод 6: BodyPosition", "Метод 7: SetStateEnabled", "Метод 8: VirtualUser", "Метод 9: CFrame+BodyVelocity", "Метод 10: Рывки", "Метод 11: Анти-кик", "Метод 12: BodyThrust", "Метод 13: Комбинация", "Метод 14: Плавное ускорение", "Метод 15: Максимальный обход"}, "Метод 1: Velocity", function(val) end)
-createSlider(cols.Movement, "Скорость полета", 10, 200, 50, function(val) features.flySpeed = val end, "")
-local noclipBtn = createButton(cols.Movement, "Noclip", false, function(on) features.noclip = on end)
-local infJumpBtn = createButton(cols.Movement, "Inf Jump", false, function(on) features.infJump = on end)
-local speedBtn = createButton(cols.Movement, "Speed", false, function(on) features.speedEnabled = on end)
-createSlider(cols.Movement, "Speed Power", 10, 200, 50, function(val) features.speedPower = val end, "")
-local jumpBtn = createButton(cols.Movement, "Jump Power", false, function(on) features.jumpEnabled = on end)
-createSlider(cols.Movement, "Jump Power", 10, 200, 100, function(val) features.jumpPower = val end, "")
-
--- VISUALS
-local fullbrightBtn = createButton(cols.Visuals, "Fullbright", false, function(on) 
-    features.fullbright = on
-    if on then
-        Lighting.Brightness = 5
-        Lighting.ClockTime = 14
-        Lighting.GlobalShadows = false
-        Lighting.FogEnd = 100000
-        Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-        Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-    else
-        Lighting.Brightness = defaultBrightness
-        Lighting.ClockTime = defaultClock
-        Lighting.GlobalShadows = defaultShadows
-        Lighting.FogEnd = defaultFogEnd
-        Lighting.Ambient = defaultAmbient
-        Lighting.OutdoorAmbient = defaultOutdoorAmbient
-    end
-end)
-local blurBtn = createButton(cols.Visuals, "Blur", false, function(on) 
-    features.blur = on
-    blur.Size = on and 16 or 0
-end)
-local noFogBtn = createButton(cols.Visuals, "No Fog", false, function(on)
-    features.noFog = on
-    Lighting.FogEnd = on and 100000 or defaultFogEnd
-end)
-
--- PLAYER
-local clickTpBtn = createButton(cols.Player, "F+Click TP", false, function(on) features.clickTp = on end)
-local killBtn = createButton(cols.Player, "Kill", false, function(on) 
-    if on and player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.Health = 0
-    end
-end)
-local godModeBtn = createButton(cols.Player, "God Mode", false, function(on) features.godMode = on end)
-local infiniteAmmoBtn = createButton(cols.Player, "Infinite Ammo", false, function(on) features.infiniteAmmo = on end)
-
--- ESP
-local espBtn = createButton(cols.ESP, "ESP", false, function(on) 
-    features.espEnabled = on
-    updateESP()
-end)
-createDropdown(cols.ESP, "ESP Mode", {"Обводка", "Хитбокс", "Палочки"}, "Обводка", function(val) 
-    features.espMode = val
-    updateESP()
-end)
-createToggle(cols.ESP, "Показать имя", true, function(on) 
-    features.espShowName = on
-    updateESP()
-end)
-createToggle(cols.ESP, "Показать ХП", true, function(on) 
-    features.espShowHealth = on
-    updateESP()
-end)
-createToggle(cols.ESP, "Показать дист.", false, function(on) 
-    features.espShowDistance = on
-    updateESP()
-end)
-createToggle(cols.ESP, "Трейлы", false, function(on)
-    features.espShowTrails = on
-    updateESP()
-end)
-createSlider(cols.ESP, "Время трейла", 1, 10, 5, function(val)
-    features.espTrailTime = val
-    updateESP()
-end, "s")
-createColorPicker(cols.ESP, "ESP Color", features.espColor, function(color) 
-    features.espColor = color
-    updateESP()
-end)
-createColorPicker(cols.ESP, "Tracer Color", features.espTracerColor, function(color) 
-    features.espTracerColor = color
-    updateESP()
-end)
-createColorPicker(cols.ESP, "Team Color", features.espTeamColor, function(color) 
-    features.espTeamColor = color
-    updateESP()
-end)
-createColorPicker(cols.ESP, "Trail Color", features.espTrailColor, function(color)
-    features.espTrailColor = color
-    updateESP()
-end)
-
--- MISC
-local particlesBtn = createButton(cols.Misc, "Particles 3D", false, function(on)
-    particleFeatures.enabled = on
-end)
-createDropdown(cols.Misc, "Particle Type", {"Шары 3D", "Огненные", "Ледяные", "Радужные", "Неоновые", "Плавающие"}, "Шары 3D", function(val)
-    particleFeatures.particleType = val
-end)
-createSlider(cols.Misc, "Кол-во (макс 50)", 5, 50, 30, function(val)
-    particleFeatures.count = math.floor(val)
-end, "")
-createSlider(cols.Misc, "Размер", 0.2, 2, 0.5, function(val)
-    particleFeatures.size = val
-end, "")
-createSlider(cols.Misc, "Скорость", 5, 30, 10, function(val)
-    particleFeatures.speed = val
-end, "")
-createSlider(cols.Misc, "Радиус спавна", 30, 200, 100, function(val)
-    particleFeatures.spread = val
-end, "")
-createSlider(cols.Misc, "Время жизни", 1, 10, 3, function(val)
-    particleFeatures.lifetime = val
-end, "s")
-createColorPicker(cols.Misc, "Particle Color", particleFeatures.color, function(color)
-    particleFeatures.color = color
-end)
-createToggle(cols.Misc, "Плавающие частицы", true, function(on)
-    particleFeatures.floating = on
-end)
-createToggle(cols.Misc, "Свечение", true, function(on)
-    particleFeatures.glow = on
-end)
-createDropdown(cols.Misc, "Время", {"День", "Ночь", "Закат", "Рассвет"}, "День", function(val)
-    if val == "День" then
-        Lighting.ClockTime = 14
-        Lighting.Brightness = 5
-        Lighting.GlobalShadows = false
-    elseif val == "Ночь" then
-        Lighting.ClockTime = 0
-        Lighting.Brightness = 1
-        Lighting.GlobalShadows = true
-    elseif val == "Закат" then
-        Lighting.ClockTime = 18
-        Lighting.Brightness = 3
-        Lighting.GlobalShadows = true
-    elseif val == "Рассвет" then
-        Lighting.ClockTime = 6
-        Lighting.Brightness = 3
-        Lighting.GlobalShadows = true
-    end
-end)
-local autoAttackBtn = createButton(cols.Misc, "Auto Attack", false, function(on) features.autoAttack = on end)
-createSlider(cols.Misc, "Attack Range", 5, 50, 20, function(val) features.autoAttackRange = val end, "")
-local dupeItemsBtn = createButton(cols.Misc, "Dupe Items", false, function(on)
-    if on then
-        local items = findItems()
-        for _, item in ipairs(items) do
-            local clone = item:Clone()
-            clone.Parent = workspace
-            clone.Position = clone.Position + Vector3.new(5, 0, 5)
-            table.insert(dupeItems, clone)
-        end
-    end
-end)
-createButton(cols.Misc, "Unhook", false, function(on)
-    if on then
-        gui:Destroy()
-        blur:Destroy()
-    end
-end)
-
--- TELEPORT
-local tpNote = Instance.new("TextLabel")
-tpNote.BackgroundTransparency = 1
-tpNote.Font = Enum.Font.Gotham
-tpNote.Text = "=== ТЕЛЕПОРТАЦИЯ ==="
-tpNote.TextColor3 = Color3.fromRGB(255, 255, 100)
-tpNote.TextSize = 16
-tpNote.Size = UDim2.new(1, -20, 0, 30)
-tpNote.ZIndex = 1004
-tpNote.Parent = cols.Teleport.scrolling
-
-local tpInput = Instance.new("TextBox")
-tpInput.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
-tpInput.PlaceholderText = "Ник игрока"
-tpInput.Text = ""
-tpInput.TextColor3 = Color3.new(1, 1, 1)
-tpInput.Size = UDim2.new(1, -20, 0, 30)
-tpInput.ZIndex = 1004
-tpInput.Parent = cols.Teleport.scrolling
-
-local tpCorner = Instance.new("UICorner")
-tpCorner.CornerRadius = UDim.new(0, 6)
-tpCorner.Parent = tpInput
-
-local tpButton = Instance.new("TextButton")
-tpButton.BackgroundColor3 = themeSettings.accentColor
-tpButton.Size = UDim2.new(1, -20, 0, 30)
-tpButton.Text = "ТЕЛЕПОРТ К ИГРОКУ"
-tpButton.TextColor3 = Color3.new(1, 1, 1)
-tpButton.ZIndex = 1004
-tpButton.Parent = cols.Teleport.scrolling
-
-local tpCorner2 = Instance.new("UICorner")
-tpCorner2.CornerRadius = UDim.new(0, 6)
-tpCorner2.Parent = tpButton
-
-tpButton.MouseButton1Click:Connect(function()
-    local targetName = tpInput.Text
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p.Name:lower():find(targetName:lower()) or p.DisplayName:lower():find(targetName:lower()) then
-            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                player.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
-            end
-            break
-        end
-    end
-end)
-
-local tpPointNote = Instance.new("TextLabel")
-tpPointNote.BackgroundTransparency = 1
-tpPointNote.Font = Enum.Font.Gotham
-tpPointNote.Text = "=== СОХРАНЕННЫЕ ТОЧКИ ==="
-tpPointNote.TextColor3 = Color3.fromRGB(255, 255, 100)
-tpPointNote.TextSize = 16
-tpPointNote.Size = UDim2.new(1, -20, 0, 30)
-tpPointNote.ZIndex = 1004
-tpPointNote.Parent = cols.Teleport.scrolling
-
-local tpPointInput = Instance.new("TextBox")
-tpPointInput.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
-tpPointInput.PlaceholderText = "Название точки"
-tpPointInput.Text = ""
-tpPointInput.TextColor3 = Color3.new(1, 1, 1)
-tpPointInput.Size = UDim2.new(1, -20, 0, 30)
-tpPointInput.ZIndex = 1004
-tpPointInput.Parent = cols.Teleport.scrolling
-
-local tpPointCorner = Instance.new("UICorner")
-tpPointCorner.CornerRadius = UDim.new(0, 6)
-tpPointCorner.Parent = tpPointInput
-
-local savePointBtn = Instance.new("TextButton")
-savePointBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-savePointBtn.Size = UDim2.new(1, -20, 0, 30)
-savePointBtn.Text = "СОХРАНИТЬ ТЕКУЩУЮ ТОЧКУ"
-savePointBtn.TextColor3 = Color3.new(1, 1, 1)
-savePointBtn.ZIndex = 1004
-savePointBtn.Parent = cols.Teleport.scrolling
-
-local saveCorner = Instance.new("UICorner")
-saveCorner.CornerRadius = UDim.new(0, 6)
-saveCorner.Parent = savePointBtn
-
-savePointBtn.MouseButton1Click:Connect(function()
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        local name = tpPointInput.Text
-        if name == "" then
-            name = "Точка #" .. (#teleportPoints + 1)
-        end
-        local pos = player.Character.HumanoidRootPart.Position
-        table.insert(teleportPoints, {name = name, pos = pos})
-        updateTeleportPoints()
-        tpPointInput.Text = ""
-    end
-end)
-
-local tpPointsList = Instance.new("ScrollingFrame")
-tpPointsList.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-tpPointsList.BorderSizePixel = 0
-tpPointsList.Size = UDim2.new(1, -20, 0, 150)
-tpPointsList.CanvasSize = UDim2.new(0, 0, 2, 0)
-tpPointsList.ScrollBarThickness = 6
-tpPointsList.ZIndex = 1004
-tpPointsList.Parent = cols.Teleport.scrolling
-
-local tpListLayout = Instance.new("UIListLayout")
-tpListLayout.Parent = tpPointsList
-tpListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-tpListLayout.Padding = UDim.new(0, 2)
-
-local function updateTeleportPoints()
-    for _, child in ipairs(tpPointsList:GetChildren()) do
-        if child:IsA("TextButton") then
+-- ===== ФУНКЦИЯ ОБНОВЛЕНИЯ ФУНКЦИЙ =====
+function updateFunctions()
+    -- Очищаем контейнер функций
+    for _, child in ipairs(functionsScrolling:GetChildren()) do
+        if not child:IsA("UIListLayout") then
             child:Destroy()
         end
     end
     
-    for i, point in ipairs(teleportPoints) do
-        local pointBtn = Instance.new("TextButton")
-        pointBtn.BackgroundColor3 = (selectedTeleportPoint == point) and themeSettings.accentColor or Color3.fromRGB(50, 50, 55)
-        pointBtn.Size = UDim2.new(1, -10, 0, 25)
-        pointBtn.Text = point.name .. " (X:" .. math.floor(point.pos.X) .. " Y:" .. math.floor(point.pos.Y) .. " Z:" .. math.floor(point.pos.Z) .. ")"
-        pointBtn.TextColor3 = Color3.new(1, 1, 1)
-        pointBtn.TextSize = 12
-        pointBtn.ZIndex = 1005
-        pointBtn.Parent = tpPointsList
+    if currentModule == "COMBAT" then
+        createToggleButton("Aimbot", features.aimbot, function(on) features.aimbot = on end)
+        createDropdown("Aimbot Method", {"Lerp", "Мгновенный", "Плавный+", "С инерцией"}, "Lerp", function(val) features.aimbotMethod = val end)
+        createSlider("Рандомность аима", 0, 0.5, features.aimbotRandomness, function(val) features.aimbotRandomness = val end, "")
+        createSlider("Скорость аима", 0.1, 1, features.aimbotSpeed, function(val) features.aimbotSpeed = val end, "")
+        createSlider("FOV", 30, 180, features.aimbotFOV, function(val) features.aimbotFOV = val end, "°")
+        createToggleButton("Показать FOV", features.aimbotShowFOV, function(on) features.aimbotShowFOV = on end)
+        createToggleButton("Team Check", features.teamCheck, function(on) features.teamCheck = on end)
         
-        pointBtn.MouseButton1Click:Connect(function()
-            selectedTeleportPoint = point
-            updateTeleportPoints()
+    elseif currentModule == "MOVEMENT" then
+        createToggleButton("Fly", features.fly, function(on) 
+            features.fly = on
+            if on then
+                -- Здесь будет код флая
+            end
+        end)
+        createDropdown("Fly Method", {"Метод 1", "Метод 2", "Метод 3", "Метод 4", "Метод 5"}, "Метод 1", function(val) end)
+        createSlider("Скорость полета", 10, 200, features.flySpeed, function(val) features.flySpeed = val end, "")
+        createToggleButton("Noclip", features.noclip, function(on) features.noclip = on end)
+        createToggleButton("Inf Jump", features.infJump, function(on) features.infJump = on end)
+        createToggleButton("Speed", features.speedEnabled, function(on) features.speedEnabled = on end)
+        createSlider("Speed Power", 10, 200, features.speedPower, function(val) features.speedPower = val end, "")
+        createToggleButton("Jump Power", features.jumpEnabled, function(on) features.jumpEnabled = on end)
+        createSlider("Jump Power", 10, 200, features.jumpPower, function(val) features.jumpPower = val end, "")
+        
+    elseif currentModule == "VISUALS" then
+        createToggleButton("Fullbright", features.fullbright, function(on) 
+            features.fullbright = on
+            Lighting.Brightness = on and 3 or 1
+            Lighting.GlobalShadows = not on
+        end)
+        createToggleButton("Blur", features.blur, function(on) 
+            features.blur = on
+        end)
+        createToggleButton("No Fog", features.noFog, function(on) 
+            features.noFog = on
+            Lighting.FogEnd = on and 100000 or 1000
         end)
         
-        pointBtn.MouseButton2Click:Connect(function()
-            table.remove(teleportPoints, i)
-            updateTeleportPoints()
+    elseif currentModule == "PLAYER" then
+        createToggleButton("F+Click TP", features.clickTp, function(on) features.clickTp = on end)
+        createToggleButton("God Mode", features.godMode, function(on) features.godMode = on end)
+        createToggleButton("Infinite Ammo", features.infiniteAmmo, function(on) features.infiniteAmmo = on end)
+        
+        local killBtn = Instance.new("TextButton")
+        killBtn.Size = UDim2.new(1, 0, 0, 40)
+        killBtn.BackgroundColor3 = colors.danger
+        killBtn.Text = "KILL YOURSELF"
+        killBtn.TextColor3 = Color3.new(1, 1, 1)
+        killBtn.TextSize = 14
+        killBtn.Font = Enum.Font.GothamBold
+        killBtn.ZIndex = 1004
+        killBtn.Parent = functionsScrolling
+        
+        local killCorner = Instance.new("UICorner")
+        killCorner.CornerRadius = UDim.new(0, 8)
+        killCorner.Parent = killBtn
+        
+        killBtn.MouseButton1Click:Connect(function()
+            if player.Character and player.Character:FindFirstChild("Humanoid") then
+                player.Character.Humanoid.Health = 0
+            end
         end)
+        
+    elseif currentModule == "ESP" then
+        createToggleButton("ESP", features.espEnabled, function(on) features.espEnabled = on end)
+        createDropdown("ESP Mode", {"Обводка", "Хитбокс", "Палочки"}, "Обводка", function(val) end)
+        createToggleButton("Показать имя", true, function(on) end)
+        createToggleButton("Показать ХП", true, function(on) end)
+        createToggleButton("Показать дист.", false, function(on) end)
+        createToggleButton("Трейлы", false, function(on) end)
+        createSlider("Время трейла", 1, 10, 5, function(val) end, "s")
+        
+    elseif currentModule == "MISC" then
+        createToggleButton("Particles 3D", features.particles, function(on) features.particles = on end)
+        createDropdown("Particle Type", {"Шары 3D", "Огненные", "Ледяные", "Радужные"}, "Шары 3D", function(val) end)
+        createSlider("Кол-во", 5, 50, 30, function(val) end, "")
+        createToggleButton("Auto Attack", features.autoAttack, function(on) features.autoAttack = on end)
+        createSlider("Attack Range", 5, 50, features.autoAttackRange, function(val) features.autoAttackRange = val end, "")
+        
+    elseif currentModule == "TELEPORT" then
+        local tpInput = Instance.new("TextBox")
+        tpInput.BackgroundColor3 = colors.panelLight
+        tpInput.PlaceholderText = "Ник игрока"
+        tpInput.PlaceholderColor3 = colors.textDim
+        tpInput.Text = ""
+        tpInput.TextColor3 = colors.text
+        tpInput.Size = UDim2.new(1, 0, 0, 40)
+        tpInput.ZIndex = 1004
+        tpInput.Parent = functionsScrolling
+        
+        local tpCorner = Instance.new("UICorner")
+        tpCorner.CornerRadius = UDim.new(0, 8)
+        tpCorner.Parent = tpInput
+        
+        local tpBtn = Instance.new("TextButton")
+        tpBtn.BackgroundColor3 = colors.accent
+        tpBtn.Size = UDim2.new(1, 0, 0, 40)
+        tpBtn.Text = "ТЕЛЕПОРТ К ИГРОКУ"
+        tpBtn.TextColor3 = Color3.new(1, 1, 1)
+        tpBtn.TextSize = 14
+        tpBtn.Font = Enum.Font.GothamBold
+        tpBtn.ZIndex = 1004
+        tpBtn.Parent = functionsScrolling
+        
+        local tpBtnCorner = Instance.new("UICorner")
+        tpBtnCorner.CornerRadius = UDim.new(0, 8)
+        tpBtnCorner.Parent = tpBtn
+        
+        tpBtn.MouseButton1Click:Connect(function()
+            local targetName = tpInput.Text
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p.Name:lower():find(targetName:lower()) or p.DisplayName:lower():find(targetName:lower()) then
+                    if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        player.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                    end
+                    break
+                end
+            end
+        end)
+        
+    elseif currentModule == "THEME" then
+        createSlider("Затемнение фона", 0, 1, 0.7, function(val) 
+            bgDim.BackgroundTransparency = val 
+        end, "")
+        createSlider("Прозрачность панелей", 0, 0.3, 0, function(val) 
+            modulesPanel.BackgroundTransparency = val
+            functionsPanel.BackgroundTransparency = val
+        end, "")
+        createSlider("Прозрачность кнопок", 0, 0.3, 0, function(val) end, "")
+        
+        local resetBtn = Instance.new("TextButton")
+        resetBtn.Size = UDim2.new(1, 0, 0, 45)
+        resetBtn.BackgroundColor3 = colors.panelLight
+        resetBtn.Text = "СБРОСИТЬ ТЕМУ"
+        resetBtn.TextColor3 = colors.text
+        resetBtn.TextSize = 14
+        resetBtn.Font = Enum.Font.GothamBold
+        resetBtn.ZIndex = 1004
+        resetBtn.Parent = functionsScrolling
+        
+        local resetCorner = Instance.new("UICorner")
+        resetCorner.CornerRadius = UDim.new(0, 8)
+        resetCorner.Parent = resetBtn
     end
-    
-    tpPointsList.CanvasSize = UDim2.new(0, 0, 0, #teleportPoints * 27)
 end
 
-local tpToPointBtn = Instance.new("TextButton")
-tpToPointBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 0)
-tpToPointBtn.Size = UDim2.new(1, -20, 0, 30)
-tpToPointBtn.Text = "ТП К ВЫБРАННОЙ ТОЧКЕ"
-tpToPointBtn.TextColor3 = Color3.new(1, 1, 1)
-tpToPointBtn.ZIndex = 1004
-tpToPointBtn.Parent = cols.Teleport.scrolling
+-- Инициализация
+updateFunctions()
 
-local tpPointCorner2 = Instance.new("UICorner")
-tpPointCorner2.CornerRadius = UDim.new(0, 6)
-tpPointCorner2.Parent = tpToPointBtn
-
-tpToPointBtn.MouseButton1Click:Connect(function()
-    if selectedTeleportPoint and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        player.Character.HumanoidRootPart.CFrame = CFrame.new(selectedTeleportPoint.pos)
-    end
-end)
-
-local deletePointBtn = Instance.new("TextButton")
-deletePointBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-deletePointBtn.Size = UDim2.new(1, -20, 0, 30)
-deletePointBtn.Text = "УДАЛИТЬ ВЫБРАННУЮ ТОЧКУ"
-deletePointBtn.TextColor3 = Color3.new(1, 1, 1)
-deletePointBtn.ZIndex = 1004
-deletePointBtn.Parent = cols.Teleport.scrolling
-
-local deleteCorner = Instance.new("UICorner")
-deleteCorner.CornerRadius = UDim.new(0, 6)
-deleteCorner.Parent = deletePointBtn
-
-deletePointBtn.MouseButton1Click:Connect(function()
-    if selectedTeleportPoint then
-        for i, point in ipairs(teleportPoints) do
-            if point == selectedTeleportPoint then
-                table.remove(teleportPoints, i)
-                selectedTeleportPoint = nil
-                updateTeleportPoints()
-                break
-            end
-        end
-    end
-end)
-
--- THEME
-local resetBtn = Instance.new("TextButton")
-resetBtn.Name = "ResetBtn"
-resetBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
-resetBtn.Size = UDim2.new(1, -20, 0, 28)
-resetBtn.Text = "Сбросить тему"
-resetBtn.TextColor3 = Color3.new(1, 1, 1)
-resetBtn.TextSize = 14
-resetBtn.ZIndex = 1004
-resetBtn.Parent = cols.Theme.scrolling
-
-local resetCorner = Instance.new("UICorner")
-resetCorner.CornerRadius = UDim.new(0, 6)
-resetCorner.Parent = resetBtn
-
--- Настройки темы
-createSlider(cols.Theme, "Затемнение фона", 0, 1, 0.5, function(val)
-    themeSettings.bgDimTransparency = val
-    bgDim.BackgroundTransparency = val
-end, "")
-createSlider(cols.Theme, "Прозрачность колонок", 0, 0.5, 0.1, function(val)
-    themeSettings.columnsTransparency = val
-    for name, col in pairs(cols) do
-        col.frame.BackgroundTransparency = val
-    end
-end, "")
-createSlider(cols.Theme, "Прозрачность кнопок", 0, 0.5, 0.2, function(val)
-    themeSettings.buttonsTransparency = val
-    for name, col in pairs(cols) do
-        for _, child in ipairs(col.scrolling:GetChildren()) do
-            if child:IsA("TextButton") and child.Name ~= "ResetBtn" then
-                child.BackgroundTransparency = val
-            end
-        end
-    end
-end, "")
-createSlider(cols.Theme, "Яркость UI", 0.5, 2, 1, function(val)
-    themeSettings.brightness = val
-    gui.Saturation = val
-end, "x")
-
-createColorPicker(cols.Theme, "Цвет фона", themeSettings.bgDimColor, function(color)
-    themeSettings.bgDimColor = color
-    bgDim.BackgroundColor3 = color
-end)
-
-createColorPicker(cols.Theme, "Цвет колонок", themeSettings.columnsColor, function(color)
-    themeSettings.columnsColor = color
-    for name, col in pairs(cols) do
-        col.frame.BackgroundColor3 = color
-    end
-end)
-
-createColorPicker(cols.Theme, "Цвет кнопок", themeSettings.buttonsColor, function(color)
-    themeSettings.buttonsColor = color
-    for name, col in pairs(cols) do
-        for _, child in ipairs(col.scrolling:GetChildren()) do
-            if child:IsA("TextButton") and child.Name ~= "ResetBtn" then
-                child.BackgroundColor3 = color
-            end
-        end
-    end
-end)
-
-createColorPicker(cols.Theme, "Акцент цвет", themeSettings.accentColor, function(color)
-    themeSettings.accentColor = color
-    for name, col in pairs(cols) do
-        for _, child in ipairs(col.scrolling:GetChildren()) do
-            if child:IsA("TextButton") then
-                if child:FindFirstChild("Status") and child.Status.Text == "ON" then
-                    child.BackgroundColor3 = color
-                end
-            end
-            if child:IsA("Frame") and child.Name:find("Slider") then
-                for _, sliderChild in ipairs(child:GetDescendants()) do
-                    if sliderChild:IsA("Frame") and sliderChild.Parent and sliderChild.Parent:IsA("Frame") and sliderChild.Parent.Parent == child then
-                        sliderChild.BackgroundColor3 = color
-                    end
-                end
-            end
-        end
-    end
-end)
-
-createColorPicker(cols.Theme, "Цвет текста", themeSettings.textColor, function(color)
-    themeSettings.textColor = color
-    for name, col in pairs(cols) do
-        col.frame.Title.TextColor3 = color
-        for _, child in ipairs(col.scrolling:GetChildren()) do
-            if child:IsA("TextButton") then
-                for _, btnChild in ipairs(child:GetChildren()) do
-                    if btnChild:IsA("TextLabel") and btnChild.Name ~= "Status" then
-                        btnChild.TextColor3 = color
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- Настройки минибара
-createToggle(cols.Theme, "Минибар включен", true, function(on)
-    themeSettings.miniBarEnabled = on
-    if not uiContainer.Visible and on then
-        miniBar.Visible = true
-    elseif not on then
-        miniBar.Visible = false
-    end
-end)
-
-createToggle(cols.Theme, "Минибар: FPS", true, function(on)
-    themeSettings.miniBarShowFPS = on
-end)
-
-createToggle(cols.Theme, "Минибар: Время", true, function(on)
-    themeSettings.miniBarShowTime = on
-end)
-
-createToggle(cols.Theme, "Минибар: Пинг", true, function(on)
-    themeSettings.miniBarShowPing = on
-end)
-
-resetBtn.MouseButton1Click:Connect(function()
-    themeSettings.bgDimTransparency = 0.5
-    themeSettings.bgDimColor = Color3.fromRGB(0, 0, 0)
-    themeSettings.columnsTransparency = 0.1
-    themeSettings.columnsColor = Color3.fromRGB(30, 30, 35)
-    themeSettings.buttonsTransparency = 0.2
-    themeSettings.buttonsColor = Color3.fromRGB(40, 40, 45)
-    themeSettings.accentColor = Color3.fromRGB(60, 70, 120)
-    themeSettings.textColor = Color3.fromRGB(255, 255, 255)
-    themeSettings.secondaryTextColor = Color3.fromRGB(200, 200, 200)
-    themeSettings.brightness = 1
+-- ===== ГОРЯЧИЕ КЛАВИШИ =====
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
     
-    bgDim.BackgroundTransparency = 0.5
-    bgDim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    gui.Saturation = 1
+    -- F8 - полная выгрузка (unhook)
+    if input.KeyCode == Enum.KeyCode.F8 then
+        gui:Destroy()
+        print("✅ Nez0x UI выгружен")
+        return
+    end
     
-    for name, col in pairs(cols) do
-        col.frame.BackgroundTransparency = 0.1
-        col.frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-        col.frame.Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-        
-        for _, child in ipairs(col.scrolling:GetChildren()) do
-            if child:IsA("TextButton") and child.Name ~= "ResetBtn" then
-                child.BackgroundTransparency = 0.2
-                child.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-                if child.Status and child.Status.Text == "ON" then
-                    child.BackgroundColor3 = Color3.fromRGB(60, 70, 120)
-                end
-                for _, btnChild in ipairs(child:GetChildren()) do
-                    if btnChild:IsA("TextLabel") and btnChild.Name ~= "Status" then
-                        btnChild.TextColor3 = Color3.fromRGB(255, 255, 255)
-                    end
-                end
-            end
+    -- M - свернуть/развернуть
+    if input.KeyCode == Enum.KeyCode.M then
+        if uiContainer.Visible then
+            -- Сворачиваем
+            uiContainer.Visible = false
+            bgDim.Visible = false
+        else
+            -- Разворачиваем
+            uiContainer.Visible = true
+            bgDim.Visible = true
         end
+        return
+    end
+    
+    -- Insert - альтернативное открытие/закрытие
+    if input.KeyCode == Enum.KeyCode.Insert then
+        uiContainer.Visible = not uiContainer.Visible
+        bgDim.Visible = uiContainer.Visible
     end
 end)
 
--- Мини-бар
-local miniBar = Instance.new("Frame")
-miniBar.Name = "MiniBar"
-miniBar.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-miniBar.BackgroundTransparency = 0.1
-miniBar.BorderSizePixel = 0
-miniBar.Position = UDim2.new(0.5, -150, 0, 20)
-miniBar.Size = UDim2.new(0, 300, 0, 50)
-miniBar.Visible = false
-miniBar.ZIndex = 2000
-miniBar.Parent = main
-
-local miniCorner = Instance.new("UICorner")
-miniCorner.CornerRadius = UDim.new(0, 10)
-miniCorner.Parent = miniBar
-
-local miniText = Instance.new("TextLabel")
-miniText.Name = "MiniBarText"
-miniText.BackgroundTransparency = 1
-miniText.Font = Enum.Font.Gotham
-miniText.Text = "FPS: 60 | Time: 00:00 | Ping: 0ms"
-miniText.TextColor3 = Color3.new(1, 1, 1)
-miniText.TextSize = 16
-miniText.Size = UDim2.new(1, -20, 1, 0)
-miniText.Position = UDim2.new(0, 10, 0, 0)
-miniText.TextXAlignment = Enum.TextXAlignment.Left
-miniText.ZIndex = 2001
-miniText.Parent = miniBar
-
+-- Дополнительная защита от багов
 spawn(function()
-    while true do
-        if miniBar.Visible and themeSettings.miniBarEnabled then
-            local parts = {}
-            if themeSettings.miniBarShowFPS then
-                table.insert(parts, "FPS: " .. fps)
-            end
-            if themeSettings.miniBarShowTime then
-                table.insert(parts, "Time: " .. currentTime)
-            end
-            if themeSettings.miniBarShowPing then
-                table.insert(parts, "Ping: " .. ping .. "ms")
-            end
-            miniText.Text = table.concat(parts, " | ")
-        end
-        wait(0.1)
+    while gui and gui.Parent do
+        -- Проверяем что клавиши работают
+        wait(1)
     end
 end)
 
-UIS.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    
-    if input.UserInputType == Enum.UserInputType.Keyboard then
-        if input.KeyCode == Enum.KeyCode.F8 then
-            gui:Destroy()
-            blur:Destroy()
-        end
-        
-        if input.KeyCode == Enum.KeyCode.M then
-            if uiContainer.Visible then
-                uiContainer.Visible = false
-                if themeSettings.miniBarEnabled then
-                    miniBar.Visible = true
-                end
-                bgDim.Visible = false
-                blur.Size = 0
-            else
-                uiContainer.Visible = true
-                miniBar.Visible = false
-                bgDim.Visible = true
-                if features.blur then
-                    blur.Size = 16
-                end
-            end
-        end
-    end
-end)
-
-print([[ 
-▓█████  ▒█████   ██▓  ██████  ▄████▄   ██▀███   ▄▄▄       ███▄    █ ▄▄▄█████▓ ▒█████   ██▓
-▓█   ▀ ▒██▒  ██▒▓██▒▒██    ▒ ▒██▀ ▀█  ▓██ ▒ ██▒▒████▄     ██ ▀█   █ ▓  ██▒ ▓▒▒██▒  ██▒▓██▒
-▒███   ▒██░  ██▒▒██▒░ ▓██▄   ▒▓█    ▄ ▓██ ░▄█ ▒▒██  ▀█▄  ▓██  ▀█ ██▒▒ ▓██░ ▒░▒██░  ██▒▒██▒
-▒▓█  ▄ ▒██   ██░░██░  ▒   ██▒▒▓▓▄ ▄██▒▒██▀▀█▄  ░██▄▄▄▄██ ▓██▒  ▐▌██▒░ ▓██▓ ░ ▒██   ██░░██░
-░▒████▒░ ████▓▒░░██░▒██████▒▒▒ ▓███▀ ░░██▓ ▒██▒ ▓█   ▓██▒▒██░   ▓██░  ▒██▒ ░ ░ ████▓▒░░██░
-░░ ▒░ ░░ ▒░▒░▒░ ░▓  ▒ ▒▓▒ ▒ ░░ ░▒ ▒  ░░ ▒▓ ░▒▓░ ▒▒   ▓▒█░░ ▒░   ▒ ▒   ▒ ░░   ░ ▒░▒░▒░ ░▓  
- ░ ░  ░  ░ ▒ ▒░  ▒ ░░ ░▒  ░ ░  ░  ▒     ░▒ ░ ▒░  ▒   ▒▒ ░░ ░░   ░ ▒░    ░      ░ ▒ ▒░  ▒ ░
-   ░   ░ ░ ░ ▒   ▒ ░░  ░  ░  ░          ░░   ░   ░   ▒      ░   ░ ░   ░      ░ ░ ░ ▒   ▒ ░
-   ░  ░    ░ ░   ░        ░  ░ ░         ░           ░  ░         ░              ░ ░   ░  
-                              ░                                                          
-
-██╗  ██╗ █████╗  ██████╗██╗  ██╗███████╗██████╗     ███████╗██╗███╗   ██╗ █████╗ ██╗     
-██║  ██║██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗    ██╔════╝██║████╗  ██║██╔══██╗██║     
-███████║███████║██║     ███████║█████╗  ██████╔╝    █████╗  ██║██╔██╗ ██║███████║██║     
-██╔══██║██╔══██║██║     ██╔══██║██╔══╝  ██╔══██╗    ██╔══╝  ██║██║╚██╗██║██╔══██║██║     
-██║  ██║██║  ██║╚██████╗██║  ██║███████╗██║  ██║    ██║     ██║██║ ╚████║██║  ██║███████╗
-╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝    ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝
-
-ДОБАВЛЕНЫ НОВЫЕ ФУНКЦИИ:
-- Speed (настройка скорости бега)
-- Jump Power (настройка силы прыжка)
-- No Fog (убрать туман)
-- Infinite Ammo (бесконечные патроны)
-- Dupe Items (копировать предметы)
-- Auto Attack (автоатака с настройкой дистанции)
-- Teleport (ТП по нику + точки телепортации)
-- God Mode (режим бога)
-
-F8 - выгрузка | M - скрыть/показать меню | Aimbot на ПКМ
+print([[
+╔══════════════════════════════════════════╗
+║     Nez0x UI - DEEP DARK EDITION         ║
+╠══════════════════════════════════════════╣
+║  ГЛУБОКИЕ ТЕМНЫЕ ЦВЕТА                    ║
+║  ✓ M - свернуть/развернуть                ║
+║  ✓ F8 - полная выгрузка (unhook)          ║
+║  ✓ Insert - открыть/закрыть               ║
+║  Слева: модули                            ║
+║  Справа: функции выбранного модуля        ║
+╚══════════════════════════════════════════╝
 ]])
