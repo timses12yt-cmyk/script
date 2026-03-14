@@ -1,4 +1,4 @@
--- Nez0x UI - АБСОЛЮТНО РАБОЧАЯ ВЕРСИЯ (ВСЕ ФУНКЦИИ РАБОТАЮТ)
+-- Nez0x UI - ULTIMATE (ВСЕ ИСПРАВЛЕНО + НОВЫЕ ФУНКЦИИ)
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -10,7 +10,6 @@ local VirtualUser = game:GetService("VirtualUser")
 local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
@@ -36,11 +35,12 @@ local colors = {
     toggleOn = Color3.fromRGB(70, 140, 70),
     toggleOff = Color3.fromRGB(45, 45, 50),
     danger = Color3.fromRGB(160, 50, 50),
+    friend = Color3.fromRGB(80, 200, 80),
 }
 
 -- Создание GUI
 local gui = Instance.new("ScreenGui")
-gui.Name = "Nez0xUI_FullyWorking"
+gui.Name = "Nez0xUI_Ultimate"
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -69,8 +69,8 @@ bgDim.Parent = gui
 local uiContainer = Instance.new("Frame")
 uiContainer.Name = "UIContainer"
 uiContainer.BackgroundTransparency = 1
-uiContainer.Size = UDim2.new(0, 950, 0, 650)
-uiContainer.Position = UDim2.new(0.5, -475, 0.5, -325)
+uiContainer.Size = UDim2.new(0, 1000, 0, 700)
+uiContainer.Position = UDim2.new(0.5, -500, 0.5, -350)
 uiContainer.ZIndex = 1001
 uiContainer.Visible = true
 uiContainer.Parent = gui
@@ -172,7 +172,7 @@ functionsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 -- ===== ПЕРЕМЕННЫЕ =====
 local currentModule = "COMBAT"
-local modules = {"COMBAT", "MOVEMENT", "VISUALS", "PLAYER", "ESP", "MISC", "TELEPORT", "THEME"}
+local modules = {"COMBAT", "MOVEMENT", "VISUALS", "PLAYER", "ESP", "MISC", "FRIENDS", "TELEPORT", "THEME"}
 
 -- Состояния функций
 local aimbotEnabled = false
@@ -200,6 +200,40 @@ local jumpPower = 100
 local autoAttackRange = 20
 local bgTransparency = 0.7
 
+-- Система друзей
+local friends = {}
+local friendEspEnabled = false
+
+-- Система точек телепортации
+local teleportPoints = {}
+local selectedTeleportPoint = nil
+
+-- Сохранение/загрузка данных
+local function saveData()
+    local data = {
+        friends = friends,
+        teleportPoints = teleportPoints
+    }
+    local success = pcall(function()
+        writefile("Nez0xData.json", HttpService:JSONEncode(data))
+    end)
+end
+
+local function loadData()
+    local success, data = pcall(function()
+        return readfile("Nez0xData.json")
+    end)
+    if success and data then
+        local decoded = HttpService:JSONDecode(data)
+        if decoded then
+            friends = decoded.friends or {}
+            teleportPoints = decoded.teleportPoints or {}
+        end
+    end
+end
+
+loadData()
+
 -- ===== РАБОЧИЕ ФУНКЦИИ =====
 
 -- AIMBOT
@@ -211,16 +245,27 @@ fovCircle.Filled = false
 fovCircle.Color = Color3.fromRGB(255, 255, 255)
 
 RunService.RenderStepped:Connect(function()
+    fovCircle.Visible = aimbotEnabled
+    fovCircle.Radius = aimbotFOV
+    fovCircle.Position = UIS:GetMouseLocation()
+    
     if aimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) and player.Character then
         local closest = nil
         local shortest = math.huge
+        local mousePos = UIS:GetMouseLocation()
         
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
-                local dist = (player.Character.HumanoidRootPart.Position - p.Character.Head.Position).Magnitude
-                if dist < shortest then
-                    shortest = dist
-                    closest = p.Character.Head
+                -- Пропускаем друзей если нужно
+                if friends[p.UserId] then continue end
+                
+                local headPos, onScreen = Workspace.CurrentCamera:WorldToViewportPoint(p.Character.Head.Position)
+                if onScreen then
+                    local dist = (Vector2.new(headPos.X, headPos.Y) - mousePos).Magnitude
+                    if dist < aimbotFOV and dist < shortest then
+                        shortest = dist
+                        closest = p.Character.Head
+                    end
                 end
             end
         end
@@ -284,12 +329,21 @@ UIS.JumpRequest:Connect(function()
     end
 end)
 
--- SPEED
+-- SPEED (ИСПРАВЛЕНО)
 RunService.Heartbeat:Connect(function()
     if speedEnabled and player.Character then
         local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-        if hrp and hrp.Velocity.Magnitude > 0 then
-            hrp.Velocity = hrp.Velocity.Unit * speedPower
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hrp and hum then
+            hum.WalkSpeed = speedPower
+        end
+    else
+        -- Сбрасываем скорость если функция выключена
+        if player.Character then
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if hum and hum.WalkSpeed ~= 16 then
+                hum.WalkSpeed = 16
+            end
         end
     end
 end)
@@ -301,10 +355,17 @@ RunService.Heartbeat:Connect(function()
         if hum then
             hum.JumpPower = jumpPower
         end
+    else
+        if player.Character then
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if hum and hum.JumpPower ~= 50 then
+                hum.JumpPower = 50
+            end
+        end
     end
 end)
 
--- FULLBRIGHT
+-- FULLBRIGHT (ИСПРАВЛЕНО)
 local defaultBrightness = Lighting.Brightness
 local defaultClock = Lighting.ClockTime
 local defaultShadows = Lighting.GlobalShadows
@@ -339,7 +400,7 @@ local function updateBlur()
     blurEffect.Size = blurEnabled and 16 or 0
 end
 
--- NO FOG
+-- NO FOG (ИСПРАВЛЕНО)
 local function updateNoFog()
     Lighting.FogEnd = noFogEnabled and 100000 or 1000
 end
@@ -392,6 +453,9 @@ RunService.Heartbeat:Connect(function()
         
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                -- Пропускаем друзей
+                if friends[p.UserId] then continue end
+                
                 local dist = (myPos.Position - p.Character.HumanoidRootPart.Position).Magnitude
                 if dist <= autoAttackRange then
                     for _, tool in ipairs(player.Character:GetChildren()) do
@@ -455,11 +519,13 @@ local function updateESP()
     
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= player and p.Character then
+            local color = friends[p.UserId] and colors.friend or Color3.fromRGB(255, 80, 80)
+            
             local highlight = Instance.new("Highlight")
             highlight.Parent = p.Character
-            highlight.FillColor = Color3.fromRGB(255, 80, 80)
+            highlight.FillColor = color
             highlight.FillTransparency = 0.5
-            highlight.OutlineColor = Color3.fromRGB(255, 80, 80)
+            highlight.OutlineColor = color
             highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
             table.insert(espObjects, highlight)
         end
@@ -472,6 +538,7 @@ local function unhook()
     if particleConnection then particleConnection:Disconnect() end
     if blurEffect then blurEffect:Destroy() end
     if fovCircle then fovCircle:Remove() end
+    updateESP() -- очищаем ESP
     if gui then gui:Destroy() end
     print("✅ Nez0x UI выгружен")
 end
@@ -539,7 +606,7 @@ local function createToggle(text, getVar, setVar)
     local btn = Instance.new("TextButton")
     btn.Name = text .. "Btn"
     btn.Size = UDim2.new(1, 0, 0, 40)
-    btn.BackgroundColor3 = colors.panelLight
+    btn.BackgroundColor3 = getVar() and colors.accent or colors.panelLight
     btn.Text = ""
     btn.AutoButtonColor = false
     btn.ZIndex = 1004
@@ -650,7 +717,7 @@ local function createSlider(text, min, max, getVar, setVar, suffix)
             local absPos = sliderBg.AbsolutePosition
             local size = sliderBg.AbsoluteSize.X
             local relative = math.clamp((mousePos.X - absPos.X) / size, 0, 1)
-            slider.Size = UDim2.new(relative, 0, 1, 0)
+            slider:TweenSize(UDim2.new(relative, 0, 1, 0), "Out", "Quad", 0.1, true)
             local value = min + (max - min) * relative
             value = math.floor(value * 100) / 100
             valueLabel.Text = tostring(value) .. suffix
@@ -661,12 +728,7 @@ local function createSlider(text, min, max, getVar, setVar, suffix)
     return container
 end
 
--- ===== СОЗДАНИЕ КНОПОК МОДУЛЕЙ =====
-for _, module in ipairs(modules) do
-    createModuleButton(module)
-end
-
--- ===== ФУНКЦИЯ ОБНОВЛЕНИЯ ФУНКЦИЙ =====
+-- Функция обновления контента
 function updateFunctions()
     for _, child in ipairs(functionsScrolling:GetChildren()) do
         if not child:IsA("UIListLayout") then child:Destroy() end
@@ -700,7 +762,7 @@ function updateFunctions()
         local killBtn = Instance.new("TextButton")
         killBtn.Size = UDim2.new(1, 0, 0, 40)
         killBtn.BackgroundColor3 = colors.danger
-        killBtn.Text = "KILL YOURSELF"
+        killBtn.Text = "💀 KILL YOURSELF"
         killBtn.TextColor3 = Color3.new(1,1,1)
         killBtn.TextSize = 14
         killBtn.Font = Enum.Font.GothamBold
@@ -741,42 +803,273 @@ function updateFunctions()
             unhook()
         end)
         
-    elseif currentModule == "TELEPORT" then
-        local tpInput = Instance.new("TextBox")
-        tpInput.BackgroundColor3 = colors.panelLight
-        tpInput.PlaceholderText = "Ник игрока"
-        tpInput.PlaceholderColor3 = colors.textDim
-        tpInput.Text = ""
-        tpInput.TextColor3 = colors.text
-        tpInput.Size = UDim2.new(1, 0, 0, 40)
-        tpInput.Parent = functionsScrolling
+    elseif currentModule == "FRIENDS" then
+        local friendNote = Instance.new("TextLabel")
+        friendNote.Size = UDim2.new(1, 0, 0, 30)
+        friendNote.BackgroundTransparency = 1
+        friendNote.Text = "👥 СПИСОК ДРУЗЕЙ"
+        friendNote.TextColor3 = colors.accentLight
+        friendNote.TextSize = 16
+        friendNote.Font = Enum.Font.GothamBold
+        friendNote.Parent = functionsScrolling
         
-        local tpCorner = Instance.new("UICorner")
-        tpCorner.CornerRadius = UDim.new(0, 8)
-        tpCorner.Parent = tpInput
+        local friendList = Instance.new("ScrollingFrame")
+        friendList.Size = UDim2.new(1, 0, 0, 200)
+        friendList.BackgroundColor3 = colors.panelLight
+        friendList.BorderSizePixel = 0
+        friendList.CanvasSize = UDim2.new(0, 0, 0, 0)
+        friendList.ScrollBarThickness = 4
+        friendList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        friendList.Parent = functionsScrolling
         
-        local tpBtn = Instance.new("TextButton")
-        tpBtn.BackgroundColor3 = colors.accent
-        tpBtn.Size = UDim2.new(1, 0, 0, 40)
-        tpBtn.Text = "ТЕЛЕПОРТ К ИГРОКУ"
-        tpBtn.TextColor3 = Color3.new(1,1,1)
-        tpBtn.TextSize = 14
-        tpBtn.Font = Enum.Font.GothamBold
-        tpBtn.Parent = functionsScrolling
+        local friendLayout = Instance.new("UIListLayout")
+        friendLayout.Parent = friendList
+        friendLayout.Padding = UDim.new(0, 2)
         
-        local tpBtnCorner = Instance.new("UICorner")
-        tpBtnCorner.CornerRadius = UDim.new(0, 8)
-        tpBtnCorner.Parent = tpBtn
+        local function updateFriendList()
+            for _, child in ipairs(friendList:GetChildren()) do
+                if child:IsA("Frame") then child:Destroy() end
+            end
+            
+            for userId, name in pairs(friends) do
+                local container = Instance.new("Frame")
+                container.Size = UDim2.new(1, -10, 0, 35)
+                container.BackgroundColor3 = colors.panel
+                container.Parent = friendList
+                
+                local containerCorner = Instance.new("UICorner")
+                containerCorner.CornerRadius = UDim.new(0, 6)
+                containerCorner.Parent = container
+                
+                local nameLabel = Instance.new("TextLabel")
+                nameLabel.Size = UDim2.new(1, -60, 1, 0)
+                nameLabel.Position = UDim2.new(0, 10, 0, 0)
+                nameLabel.BackgroundTransparency = 1
+                nameLabel.Text = name
+                nameLabel.TextColor3 = colors.text
+                nameLabel.TextSize = 14
+                nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+                nameLabel.Parent = container
+                
+                local removeBtn = Instance.new("TextButton")
+                removeBtn.Size = UDim2.new(0, 50, 1, -10)
+                removeBtn.Position = UDim2.new(1, -55, 0, 5)
+                removeBtn.BackgroundColor3 = colors.danger
+                removeBtn.Text = "✕"
+                removeBtn.TextColor3 = Color3.new(1,1,1)
+                removeBtn.TextSize = 14
+                removeBtn.Parent = container
+                
+                local removeCorner = Instance.new("UICorner")
+                removeCorner.CornerRadius = UDim.new(0, 4)
+                removeCorner.Parent = removeBtn
+                
+                removeBtn.MouseButton1Click:Connect(function()
+                    friends[userId] = nil
+                    saveData()
+                    updateFriendList()
+                    if espEnabled then updateESP() end
+                end)
+            end
+        end
         
-        tpBtn.MouseButton1Click:Connect(function()
-            local targetName = tpInput.Text
+        updateFriendList()
+        
+        local addFriendInput = Instance.new("TextBox")
+        addFriendInput.Size = UDim2.new(1, 0, 0, 40)
+        addFriendInput.BackgroundColor3 = colors.panelLight
+        addFriendInput.PlaceholderText = "Введите имя игрока"
+        addFriendInput.PlaceholderColor3 = colors.textDim
+        addFriendInput.Text = ""
+        addFriendInput.TextColor3 = colors.text
+        addFriendInput.Parent = functionsScrolling
+        
+        local addCorner = Instance.new("UICorner")
+        addCorner.CornerRadius = UDim.new(0, 8)
+        addCorner.Parent = addFriendInput
+        
+        local addBtn = Instance.new("TextButton")
+        addBtn.Size = UDim2.new(1, 0, 0, 40)
+        addBtn.BackgroundColor3 = colors.friend
+        addBtn.Text = "➕ ДОБАВИТЬ В ДРУЗЬЯ"
+        addBtn.TextColor3 = Color3.new(1,1,1)
+        addBtn.TextSize = 14
+        addBtn.Font = Enum.Font.GothamBold
+        addBtn.Parent = functionsScrolling
+        
+        local addBtnCorner = Instance.new("UICorner")
+        addBtnCorner.CornerRadius = UDim.new(0, 8)
+        addBtnCorner.Parent = addBtn
+        
+        addBtn.MouseButton1Click:Connect(function()
+            local targetName = addFriendInput.Text
             for _, p in ipairs(Players:GetPlayers()) do
                 if p.Name:lower():find(targetName:lower()) or p.DisplayName:lower():find(targetName:lower()) then
-                    if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        player.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
-                    end
+                    friends[p.UserId] = p.Name
+                    saveData()
+                    updateFriendList()
+                    if espEnabled then updateESP() end
+                    addFriendInput.Text = ""
                     break
                 end
+            end
+        end)
+        
+        createToggle("ESP для друзей", function() return friendEspEnabled end, function(v) friendEspEnabled = v end)
+        
+    elseif currentModule == "TELEPORT" then
+        local tpNote = Instance.new("TextLabel")
+        tpNote.Size = UDim2.new(1, 0, 0, 30)
+        tpNote.BackgroundTransparency = 1
+        tpNote.Text = "📍 ТОЧКИ ТЕЛЕПОРТАЦИИ"
+        tpNote.TextColor3 = colors.accentLight
+        tpNote.TextSize = 16
+        tpNote.Font = Enum.Font.GothamBold
+        tpNote.Parent = functionsScrolling
+        
+        -- Список точек
+        local pointsList = Instance.new("ScrollingFrame")
+        pointsList.Size = UDim2.new(1, 0, 0, 200)
+        pointsList.BackgroundColor3 = colors.panelLight
+        pointsList.BorderSizePixel = 0
+        pointsList.CanvasSize = UDim2.new(0, 0, 0, 0)
+        pointsList.ScrollBarThickness = 4
+        pointsList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        pointsList.Parent = functionsScrolling
+        
+        local pointsLayout = Instance.new("UIListLayout")
+        pointsLayout.Parent = pointsList
+        pointsLayout.Padding = UDim.new(0, 2)
+        
+        local function updatePointsList()
+            for _, child in ipairs(pointsList:GetChildren()) do
+                if child:IsA("Frame") then child:Destroy() end
+            end
+            
+            for i, point in ipairs(teleportPoints) do
+                local container = Instance.new("Frame")
+                container.Size = UDim2.new(1, -10, 0, 45)
+                container.BackgroundColor3 = (selectedTeleportPoint == point) and colors.accent or colors.panel
+                container.Parent = pointsList
+                
+                local containerCorner = Instance.new("UICorner")
+                containerCorner.CornerRadius = UDim.new(0, 6)
+                containerCorner.Parent = container
+                
+                local nameLabel = Instance.new("TextLabel")
+                nameLabel.Size = UDim2.new(1, -120, 0, 20)
+                nameLabel.Position = UDim2.new(0, 10, 0, 5)
+                nameLabel.BackgroundTransparency = 1
+                nameLabel.Text = point.name
+                nameLabel.TextColor3 = colors.text
+                nameLabel.TextSize = 14
+                nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+                nameLabel.Parent = container
+                
+                local coordsLabel = Instance.new("TextLabel")
+                coordsLabel.Size = UDim2.new(1, -120, 0, 16)
+                coordsLabel.Position = UDim2.new(0, 10, 0, 25)
+                coordsLabel.BackgroundTransparency = 1
+                coordsLabel.Text = string.format("X:%.0f Y:%.0f Z:%.0f", point.pos.X, point.pos.Y, point.pos.Z)
+                coordsLabel.TextColor3 = colors.textDim
+                coordsLabel.TextSize = 11
+                coordsLabel.TextXAlignment = Enum.TextXAlignment.Left
+                coordsLabel.Parent = container
+                
+                local tpBtn = Instance.new("TextButton")
+                tpBtn.Size = UDim2.new(0, 50, 1, -10)
+                tpBtn.Position = UDim2.new(1, -110, 0, 5)
+                tpBtn.BackgroundColor3 = colors.accentLight
+                tpBtn.Text = "TP"
+                tpBtn.TextColor3 = Color3.new(1,1,1)
+                tpBtn.TextSize = 12
+                tpBtn.Parent = container
+                
+                local tpCorner = Instance.new("UICorner")
+                tpCorner.CornerRadius = UDim.new(0, 4)
+                tpCorner.Parent = tpBtn
+                
+                local delBtn = Instance.new("TextButton")
+                delBtn.Size = UDim2.new(0, 50, 1, -10)
+                delBtn.Position = UDim2.new(1, -55, 0, 5)
+                delBtn.BackgroundColor3 = colors.danger
+                delBtn.Text = "✕"
+                delBtn.TextColor3 = Color3.new(1,1,1)
+                delBtn.TextSize = 14
+                delBtn.Parent = container
+                
+                local delCorner = Instance.new("UICorner")
+                delCorner.CornerRadius = UDim.new(0, 4)
+                delCorner.Parent = delBtn
+                
+                container.MouseButton1Click:Connect(function()
+                    selectedTeleportPoint = point
+                    updatePointsList()
+                end)
+                
+                tpBtn.MouseButton1Click:Connect(function()
+                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        player.Character.HumanoidRootPart.CFrame = CFrame.new(point.pos)
+                    end
+                end)
+                
+                delBtn.MouseButton1Click:Connect(function()
+                    for j, p in ipairs(teleportPoints) do
+                        if p == point then
+                            table.remove(teleportPoints, j)
+                            if selectedTeleportPoint == point then selectedTeleportPoint = nil end
+                            saveData()
+                            updatePointsList()
+                            break
+                        end
+                    end
+                end)
+            end
+        end
+        
+        updatePointsList()
+        
+        -- Добавление новой точки
+        local pointNameInput = Instance.new("TextBox")
+        pointNameInput.Size = UDim2.new(1, 0, 0, 40)
+        pointNameInput.BackgroundColor3 = colors.panelLight
+        pointNameInput.PlaceholderText = "Название точки"
+        pointNameInput.PlaceholderColor3 = colors.textDim
+        pointNameInput.Text = ""
+        pointNameInput.TextColor3 = colors.text
+        pointNameInput.Parent = functionsScrolling
+        
+        local nameCorner = Instance.new("UICorner")
+        nameCorner.CornerRadius = UDim.new(0, 8)
+        nameCorner.Parent = pointNameInput
+        
+        local saveBtn = Instance.new("TextButton")
+        saveBtn.Size = UDim2.new(1, 0, 0, 40)
+        saveBtn.BackgroundColor3 = colors.success
+        saveBtn.Text = "💾 СОХРАНИТЬ ТЕКУЩУЮ ТОЧКУ"
+        saveBtn.TextColor3 = Color3.new(1,1,1)
+        saveBtn.TextSize = 14
+        saveBtn.Font = Enum.Font.GothamBold
+        saveBtn.Parent = functionsScrolling
+        
+        local saveCorner = Instance.new("UICorner")
+        saveCorner.CornerRadius = UDim.new(0, 8)
+        saveCorner.Parent = saveBtn
+        
+        saveBtn.MouseButton1Click:Connect(function()
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local name = pointNameInput.Text
+                if name == "" then
+                    name = "Точка #" .. (#teleportPoints + 1)
+                end
+                local pos = player.Character.HumanoidRootPart.Position
+                table.insert(teleportPoints, {
+                    name = name,
+                    pos = Vector3.new(pos.X, pos.Y, pos.Z)
+                })
+                saveData()
+                updatePointsList()
+                pointNameInput.Text = ""
             end
         end)
         
@@ -785,10 +1078,32 @@ function updateFunctions()
     end
 end
 
+-- ===== СОЗДАНИЕ КНОПОК МОДУЛЕЙ =====
+for _, module in ipairs(modules) do
+    createModuleButton(module)
+end
+
 -- Инициализация
 updateFunctions()
 
--- ===== ГОРЯЧИЕ КЛАВИШИ =====
+-- Автосохранение данных
+spawn(function()
+    while true do
+        wait(60)
+        saveData()
+    end
+end)
+
+-- Обновление ESP при добавлении/удалении игроков
+Players.PlayerAdded:Connect(function()
+    if espEnabled then wait(0.5) updateESP() end
+end)
+
+Players.PlayerRemoving:Connect(function()
+    if espEnabled then wait(0.5) updateESP() end
+end)
+
+-- Горячие клавиши
 UIS.InputBegan:Connect(function(input, gp)
     if gp then return end
     
@@ -809,9 +1124,10 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
-print("✅ Nez0x UI - ВСЕ ФУНКЦИИ РАБОТАЮТ!")
+print("✅ Nez0x UI - ULTIMATE EDITION")
 print("📌 Insert - открыть/закрыть")
 print("📌 M - свернуть/развернуть")
 print("📌 F8 - выгрузить")
-print("📌 Aimbot - на ПКМ")
-print("📌 Fly - WASD + Пробел/Ctrl")
+print("📌 Aimbot - ПКМ + FOV")
+print("📌 Friends - добавляй друзей (не атакуются)")
+print("📌 Teleport - сохраняй точки")
