@@ -1,4 +1,4 @@
--- Nez0x UI - МОДУЛЬНАЯ ВЕРСИЯ [ВСЕ ФУНКЦИИ РАБОТАЮТ]
+-- Nez0x UI - РАБОЧАЯ ВЕРСИЯ (ГАРАНТИРОВАННЫЙ ЗАПУСК)
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -11,8 +11,21 @@ local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local Stats = game:GetService("Stats")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
+
+-- Проверяем наличие игрока
+if not player then
+    player = Players:GetPlayers()[1]
+end
+
+if not player then
+    warn("Игрок не найден!")
+    return
+end
 
 -- ГЛУБОКИЕ ТЕМНЫЕ ЦВЕТА
 local colors = {
@@ -29,14 +42,26 @@ local colors = {
     success = Color3.fromRGB(50, 140, 50),
 }
 
--- GUI
+-- СОЗДАНИЕ GUI С ЗАЩИТОЙ ОТ ОШИБОК
 local gui = Instance.new("ScreenGui")
 gui.Name = "Nez0xUI_Working"
-gui.Parent = CoreGui
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.IgnoreGuiInset = true
+
+-- Пытаемся поместить в CoreGui, если не получается - в PlayerGui
+local success, err = pcall(function()
+    gui.Parent = CoreGui
+end)
+
+if not success then
+    warn("CoreGui недоступен, используем PlayerGui")
+    gui.Parent = player:WaitForChild("PlayerGui")
+end
+
+-- Небольшая задержка для гарантии загрузки
+wait(0.1)
 
 -- Затемнение фона
 local bgDim = Instance.new("Frame")
@@ -91,7 +116,7 @@ modulesScrolling.BackgroundTransparency = 1
 modulesScrolling.BorderSizePixel = 0
 modulesScrolling.Position = UDim2.new(0, 0, 0, 60)
 modulesScrolling.Size = UDim2.new(1, 0, 1, -70)
-modulesScrolling.CanvasSize = UDim2.new(0, 0, 2, 0)
+modulesScrolling.CanvasSize = UDim2.new(0, 0, 0, 0)
 modulesScrolling.ScrollBarThickness = 4
 modulesScrolling.ScrollBarImageColor3 = colors.accent
 modulesScrolling.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -139,7 +164,7 @@ functionsScrolling.BackgroundTransparency = 1
 functionsScrolling.BorderSizePixel = 0
 functionsScrolling.Position = UDim2.new(0, 20, 0, 65)
 functionsScrolling.Size = UDim2.new(1, -40, 1, -85)
-functionsScrolling.CanvasSize = UDim2.new(0, 0, 2, 0)
+functionsScrolling.CanvasSize = UDim2.new(0, 0, 0, 0)
 functionsScrolling.ScrollBarThickness = 4
 functionsScrolling.ScrollBarImageColor3 = colors.accent
 functionsScrolling.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -168,7 +193,6 @@ local features = {
     
     -- Movement
     fly = false,
-    flyMethod = 1,
     flySpeed = 50,
     noclip = false,
     infJump = false,
@@ -189,27 +213,16 @@ local features = {
     
     -- ESP
     espEnabled = false,
-    espMode = "Обводка",
-    espShowName = true,
-    espShowHealth = true,
-    espShowDistance = false,
-    espShowTrails = false,
-    espColor = Color3.fromRGB(255, 80, 80),
-    espTeamColor = Color3.fromRGB(80, 255, 80),
-    espTrailTime = 5,
     
     -- Misc
     autoAttack = false,
     autoAttackRange = 20,
     particles = false,
-    
-    -- Teleport
-    teleportPoints = {},
 }
 
 -- ===== РАБОЧИЕ ФУНКЦИИ =====
 
--- Fly система
+-- Fly
 local flyConnection = nil
 local function toggleFly(state)
     features.fly = state
@@ -337,126 +350,59 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- Infinite Ammo
-local function modifyWeaponAmmo(weapon, infinite)
-    if infinite then
-        local ammo = weapon:FindFirstChild("Ammo")
-        local maxAmmo = weapon:FindFirstChild("MaxAmmo")
-        if ammo then ammo.Value = 999999 end
-        if maxAmmo then maxAmmo.Value = 999999 end
-    end
-end
-
-RunService.Heartbeat:Connect(function()
-    if features.infiniteAmmo and player.Character then
-        local backpack = player.Backpack
-        for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") then modifyWeaponAmmo(tool, true) end
-        end
-        for _, tool in ipairs(player.Character:GetChildren()) do
-            if tool:IsA("Tool") then modifyWeaponAmmo(tool, true) end
-        end
-    end
-end)
-
 -- Aimbot
 local fovCircle = Drawing.new("Circle")
 fovCircle.Visible = false
 fovCircle.Thickness = 2
 fovCircle.NumSides = 60
 fovCircle.Filled = false
-fovCircle.ZIndex = 999999
-
-local function addRandomness(target, amount)
-    if amount <= 0 then return target end
-    local offset = Vector3.new(
-        (math.random()*2-1)*amount,
-        (math.random()*2-1)*amount,
-        (math.random()*2-1)*amount
-    )
-    return target + offset
-end
+fovCircle.Color = Color3.fromRGB(255, 255, 255)
 
 RunService.RenderStepped:Connect(function()
-    if features.aimbot then
-        fovCircle.Visible = features.aimbotShowFOV
-        fovCircle.Radius = features.aimbotFOV
-        fovCircle.Position = UIS:GetMouseLocation()
-        fovCircle.Color = features.aimbotShowFOV and Color3.fromRGB(255,255,255) or Color3.new()
+    if features.aimbot and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) and player.Character then
+        local closest = nil
+        local shortest = math.huge
         
-        if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) and player.Character then
-            local closest, shortest = nil, math.huge
-            local mousePos = UIS:GetMouseLocation()
-            
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
-                    if features.teamCheck then
-                        if p.Team and player.Team and p.Team == player.Team then continue end
-                    end
-                    
-                    if features.aimbotShowFOV then
-                        local headPos, onScreen = Workspace.CurrentCamera:WorldToViewportPoint(p.Character.Head.Position)
-                        if onScreen then
-                            local dist = (Vector2.new(headPos.X, headPos.Y) - mousePos).Magnitude
-                            if dist > features.aimbotFOV then continue end
-                        end
-                    end
-                    
-                    local dist = (player.Character.HumanoidRootPart.Position - p.Character.Head.Position).Magnitude
-                    if dist < shortest then
-                        shortest = dist
-                        closest = p.Character.Head
-                    end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
+                local dist = (player.Character.HumanoidRootPart.Position - p.Character.Head.Position).Magnitude
+                if dist < shortest then
+                    shortest = dist
+                    closest = p.Character.Head
                 end
             end
-            
-            if closest then
-                local target = addRandomness(closest.Position, features.aimbotRandomness)
-                Workspace.CurrentCamera.CFrame = Workspace.CurrentCamera.CFrame:Lerp(
-                    CFrame.new(Workspace.CurrentCamera.CFrame.Position, target), 
-                    features.aimbotSpeed
-                )
-            end
         end
-    else
-        fovCircle.Visible = false
+        
+        if closest then
+            Workspace.CurrentCamera.CFrame = Workspace.CurrentCamera.CFrame:Lerp(
+                CFrame.new(Workspace.CurrentCamera.CFrame.Position, closest.Position), 
+                features.aimbotSpeed
+            )
+        end
     end
 end)
 
 -- Auto Attack
-local function findClosestEnemy(range)
-    local closest, closestDist = nil, range
-    local myPos = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not myPos then return nil end
-    
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            if features.teamCheck then
-                if p.Team and player.Team and p.Team == player.Team then continue end
-            end
-            local dist = (myPos.Position - p.Character.HumanoidRootPart.Position).Magnitude
-            if dist <= closestDist then
-                closest, closestDist = p, dist
-            end
-        end
-    end
-    return closest
-end
-
 RunService.Heartbeat:Connect(function()
     if features.autoAttack and player.Character then
-        local target = findClosestEnemy(features.autoAttackRange)
+        local target = nil
+        local myPos = player.Character:FindFirstChild("HumanoidRootPart")
+        if not myPos then return end
+        
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local dist = (myPos.Position - p.Character.HumanoidRootPart.Position).Magnitude
+                if dist <= features.autoAttackRange then
+                    target = p
+                    break
+                end
+            end
+        end
+        
         if target and target.Character then
-            local hrp = target.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                Workspace.CurrentCamera.CFrame = CFrame.lookAt(Workspace.CurrentCamera.CFrame.Position, hrp.Position)
-                for _, tool in ipairs(player.Character:GetChildren()) do
-                    if tool:IsA("Tool") then
-                        tool:Activate()
-                        for _, event in ipairs(tool:GetDescendants()) do
-                            if event:IsA("RemoteEvent") then pcall(function() event:FireServer("Activate") end) end
-                        end
-                    end
+            for _, tool in ipairs(player.Character:GetChildren()) do
+                if tool:IsA("Tool") then
+                    tool:Activate()
                 end
             end
         end
@@ -464,19 +410,17 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- Particles
-local particles = {}
 local particleConnection = nil
-
 local function createParticle()
     if not player.Character then return end
     local hrp = player.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     
-    local angle = math.random() * 2 * math.pi
-    local radius = math.random(30, 100)
-    local height = math.random(-50, 50)
-    
-    local pos = hrp.Position + Vector3.new(math.cos(angle)*radius, height+10, math.sin(angle)*radius)
+    local pos = hrp.Position + Vector3.new(
+        math.random(-50, 50),
+        math.random(-20, 50),
+        math.random(-50, 50)
+    )
     
     local ball = Instance.new("Part")
     ball.Size = Vector3.new(0.5, 0.5, 0.5)
@@ -484,21 +428,13 @@ local function createParticle()
     ball.Anchored = false
     ball.CanCollide = false
     ball.Transparency = 0.2
-    ball.BrickColor = BrickColor.new(Color3.fromRGB(100, math.random(150,255), 255))
+    ball.BrickColor = BrickColor.new(Color3.fromRGB(100, 200, 255))
     ball.Material = Enum.Material.Neon
     ball.Shape = Enum.PartType.Ball
     ball.Parent = Workspace
     
-    local light = Instance.new("PointLight")
-    light.Parent = ball
-    light.Color = Color3.fromRGB(100, 200, 255)
-    light.Range = 8
-    light.Brightness = 2
-    
-    ball.Velocity = Vector3.new(math.random(-10,10), math.random(-5,5), math.random(-10,10))
-    
-    Debris:AddItem(ball, 5)
-    Debris:AddItem(light, 5)
+    ball.Velocity = Vector3.new(math.random(-5,5), math.random(-5,5), math.random(-5,5))
+    Debris:AddItem(ball, 3)
 end
 
 local function toggleParticles(state)
@@ -506,14 +442,28 @@ local function toggleParticles(state)
     if particleConnection then particleConnection:Disconnect() particleConnection = nil end
     if state then
         particleConnection = RunService.Heartbeat:Connect(function()
-            if math.random() < 0.3 then createParticle() end
+            if math.random() < 0.2 then createParticle() end
         end)
     end
 end
 
--- Teleport система
-local teleportPoints = {}
-local selectedTeleportPoint = nil
+-- Функция полной выгрузки (UNHOOK)
+local function unhook()
+    -- Отключаем все соединения
+    if flyConnection then flyConnection:Disconnect() end
+    if particleConnection then particleConnection:Disconnect() end
+    
+    -- Удаляем эффекты
+    if blurEffect then blurEffect:Destroy() end
+    
+    -- Удаляем GUI
+    if gui then gui:Destroy() end
+    
+    -- Очищаем Drawing объекты
+    if fovCircle then fovCircle:Remove() end
+    
+    print("✅ Nez0x UI полностью выгружен")
+end
 
 -- ===== ФУНКЦИИ СОЗДАНИЯ ЭЛЕМЕНТОВ =====
 
@@ -710,51 +660,6 @@ local function createSlider(text, min, max, default, callback, suffix)
     return container
 end
 
-local function createDropdown(text, options, default, callback)
-    local container = Instance.new("Frame")
-    container.Name = text .. "Dropdown"
-    container.BackgroundTransparency = 1
-    container.Size = UDim2.new(1, 0, 0, 50)
-    container.Parent = functionsScrolling
-
-    local label = Instance.new("TextLabel")
-    label.BackgroundTransparency = 1
-    label.Font = Enum.Font.Gotham
-    label.Text = text
-    label.TextColor3 = colors.text
-    label.TextSize = 14
-    label.Position = UDim2.new(0, 5, 0, 0)
-    label.Size = UDim2.new(1, -10, 0, 22)
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = container
-
-    local selectBtn = Instance.new("TextButton")
-    selectBtn.BackgroundColor3 = colors.panelLight
-    selectBtn.Position = UDim2.new(0, 5, 0, 25)
-    selectBtn.Size = UDim2.new(1, -10, 0, 25)
-    selectBtn.Text = default or options[1]
-    selectBtn.TextColor3 = colors.text
-    selectBtn.TextSize = 13
-    selectBtn.Parent = container
-
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 6)
-    btnCorner.Parent = selectBtn
-
-    local currentIndex = 1
-    for i, opt in ipairs(options) do
-        if opt == default then currentIndex = i break end
-    end
-
-    selectBtn.MouseButton1Click:Connect(function()
-        currentIndex = currentIndex % #options + 1
-        selectBtn.Text = options[currentIndex]
-        callback(options[currentIndex])
-    end)
-
-    return selectBtn
-end
-
 -- ===== СОЗДАНИЕ КНОПОК МОДУЛЕЙ =====
 for _, module in ipairs(modules) do
     createModuleButton(module)
@@ -768,16 +673,12 @@ function updateFunctions()
     
     if currentModule == "COMBAT" then
         createToggle("Aimbot", function(on) features.aimbot = on end)
-        createDropdown("Aimbot Method", {"Lerp", "Мгновенный"}, "Lerp", function(val) features.aimbotMethod = val end)
-        createSlider("Рандомность", 0, 0.5, 0.1, function(val) features.aimbotRandomness = val end, "")
-        createSlider("Скорость", 0.1, 1, 0.5, function(val) features.aimbotSpeed = val end, "")
+        createSlider("Скорость аима", 0.1, 1, 0.5, function(val) features.aimbotSpeed = val end, "")
         createSlider("FOV", 30, 180, 90, function(val) features.aimbotFOV = val end, "°")
-        createToggle("Показать FOV", function(on) features.aimbotShowFOV = on end)
         createToggle("Team Check", function(on) features.teamCheck = on end)
         
     elseif currentModule == "MOVEMENT" then
         createToggle("Fly", toggleFly)
-        createDropdown("Fly Method", {"Метод 1"}, "Метод 1", function() end)
         createSlider("Скорость полета", 10, 200, 50, function(val) features.flySpeed = val end, "")
         createToggle("Noclip", function(on) features.noclip = on end)
         createToggle("Inf Jump", function(on) features.infJump = on end)
@@ -817,19 +718,29 @@ function updateFunctions()
         
     elseif currentModule == "ESP" then
         createToggle("ESP", function(on) features.espEnabled = on end)
-        createDropdown("ESP Mode", {"Обводка", "Хитбокс"}, "Обводка", function(val) end)
-        createToggle("Показать имя", function(on) end)
-        createToggle("Показать ХП", function(on) end)
-        createToggle("Показать дист.", function(on) end)
-        createToggle("Трейлы", function(on) end)
-        createSlider("Время трейла", 1, 10, 5, function(val) end, "s")
         
     elseif currentModule == "MISC" then
         createToggle("Particles 3D", toggleParticles)
-        createDropdown("Particle Type", {"Шары 3D"}, "Шары 3D", function() end)
-        createSlider("Кол-во", 5, 50, 30, function(val) end, "")
         createToggle("Auto Attack", function(on) features.autoAttack = on end)
         createSlider("Attack Range", 5, 50, 20, function(val) features.autoAttackRange = val end, "")
+        
+        -- КНОПКА UNHOOK (полная выгрузка)
+        local unhookBtn = Instance.new("TextButton")
+        unhookBtn.Size = UDim2.new(1, 0, 0, 45)
+        unhookBtn.BackgroundColor3 = colors.danger
+        unhookBtn.Text = "🔌 UNHOOK (ПОЛНАЯ ВЫГРУЗКА)"
+        unhookBtn.TextColor3 = Color3.new(1, 1, 1)
+        unhookBtn.TextSize = 14
+        unhookBtn.Font = Enum.Font.GothamBold
+        unhookBtn.Parent = functionsScrolling
+        
+        local unhookCorner = Instance.new("UICorner")
+        unhookCorner.CornerRadius = UDim.new(0, 8)
+        unhookCorner.Parent = unhookBtn
+        
+        unhookBtn.MouseButton1Click:Connect(function()
+            unhook()
+        end)
         
     elseif currentModule == "TELEPORT" then
         local tpInput = Instance.new("TextBox")
@@ -872,23 +783,6 @@ function updateFunctions()
         
     elseif currentModule == "THEME" then
         createSlider("Затемнение фона", 0, 1, 0.7, function(val) bgDim.BackgroundTransparency = val end, "")
-        createSlider("Прозрачность панелей", 0, 0.3, 0, function(val) 
-            modulesPanel.BackgroundTransparency = val
-            functionsPanel.BackgroundTransparency = val
-        end, "")
-        
-        local resetBtn = Instance.new("TextButton")
-        resetBtn.Size = UDim2.new(1, 0, 0, 45)
-        resetBtn.BackgroundColor3 = colors.panelLight
-        resetBtn.Text = "СБРОСИТЬ ТЕМУ"
-        resetBtn.TextColor3 = colors.text
-        resetBtn.TextSize = 14
-        resetBtn.Font = Enum.Font.GothamBold
-        resetBtn.Parent = functionsScrolling
-        
-        local resetCorner = Instance.new("UICorner")
-        resetCorner.CornerRadius = UDim.new(0, 8)
-        resetCorner.Parent = resetBtn
     end
 end
 
@@ -900,9 +794,7 @@ UIS.InputBegan:Connect(function(input, gp)
     if gp then return end
     
     if input.KeyCode == Enum.KeyCode.F8 then
-        gui:Destroy()
-        if blurEffect then blurEffect:Destroy() end
-        print("✅ Nez0x UI выгружен")
+        unhook()
         return
     end
     
@@ -918,18 +810,9 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
-print([[
-╔══════════════════════════════════════════╗
-║  Nez0x UI - ВСЕ ФУНКЦИИ РАБОТАЮТ        ║
-╠══════════════════════════════════════════╣
-║  ✓ M - свернуть/развернуть               ║
-║  ✓ F8 - полная выгрузка                   ║
-║  ✓ Aimbot работает                        ║
-║  ✓ Fly работает                           ║
-║  ✓ Noclip работает                        ║
-║  ✓ God Mode работает                      ║
-║  ✓ Auto Attack работает                   ║
-║  ✓ Particles работают                     ║
-║  ✓ Teleport работает                      ║
-╚══════════════════════════════════════════╝
-]])
+-- Выводим сообщение о успешной загрузке
+print("✅ Nez0x UI загружен успешно!")
+print("📌 Insert - открыть/закрыть")
+print("📌 M - свернуть/развернуть")
+print("📌 F8 - выгрузить (unhook)")
+print("📌 Кнопка UNHOOK в модуле MISC")
