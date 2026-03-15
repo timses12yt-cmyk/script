@@ -1,4 +1,4 @@
--- Nez0x UI - ULTIMATE (ТЕЛЕПОРТ + ТЕМЫ + РАЗМЕР)
+-- Nez0x UI - ULTIMATE (АВТООБНОВЛЕНИЕ ПОСЛЕ СМЕРТИ)
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -96,7 +96,7 @@ for k, v in pairs(defaultColors) do
 end
 
 -- ===== ПЕРЕМЕННЫЕ РАЗМЕРА GUI =====
-local guiSize = 1.0  -- Множитель размера (1.0 = 100%)
+local guiSize = 1.0
 local minSize = 0.7
 local maxSize = 1.5
 
@@ -127,7 +127,7 @@ bgDim.Size = UDim2.new(1, 0, 1, 0)
 bgDim.ZIndex = 1000
 bgDim.Parent = gui
 
--- Главный контейнер (с изменяемым размером)
+-- Главный контейнер
 local uiContainer = Instance.new("Frame")
 uiContainer.Name = "UIContainer"
 uiContainer.BackgroundTransparency = 1
@@ -268,6 +268,106 @@ local friends = {}
 -- Система точек телепортации
 local teleportPoints = {}
 
+-- ===== СИСТЕМА АВТООБНОВЛЕНИЯ =====
+local refreshConnections = {}
+
+-- Функция принудительного обновления всех модулей
+local function refreshAllModules()
+    -- Обновляем ESP
+    if espEnabled then
+        updateESP()
+    end
+    
+    -- Обновляем Fly если включен
+    if flyEnabled then
+        updateFly()
+    end
+    
+    -- Обновляем God Mode
+    if godModeEnabled and player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.Health = hum.MaxHealth
+        end
+    end
+    
+    -- Обновляем Jump Power
+    if jumpEnabled and player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.JumpPower = jumpPower
+        end
+    end
+    
+    -- Обновляем Speed
+    if speedEnabled and player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.WalkSpeed = speedPower
+        end
+    end
+    
+    -- Обновляем визуальные эффекты
+    updateFullbright()
+    updateNoFog()
+    updateBlur()
+    
+    print("🔄 Модули обновлены")
+end
+
+-- Отслеживание смерти/респавна
+local function onCharacterAdded(character)
+    wait(0.5) -- Даем время на загрузку персонажа
+    
+    -- Принудительно обновляем все модули
+    refreshAllModules()
+    
+    -- Восстанавливаем God Mode если включен
+    if godModeEnabled then
+        local hum = character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.Health = hum.MaxHealth
+        end
+    end
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+
+-- Отслеживание изменений здоровья (смерть)
+if player.Character then
+    local hum = player.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.Died:Connect(function()
+            wait(0.1)
+            -- ESP автоматически обновится при появлении нового персонажа через CharacterAdded
+        end)
+    end
+end
+
+-- Периодическое автообновление (каждые 5 секунд)
+spawn(function()
+    while true do
+        wait(5)
+        if espEnabled then
+            updateESP()
+        end
+    end
+end)
+
+-- Отслеживание телепортации (через изменение CFrame)
+local lastPosition = player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.HumanoidRootPart.Position or Vector3.new()
+RunService.Heartbeat:Connect(function()
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local currentPos = player.Character.HumanoidRootPart.Position
+        if (currentPos - lastPosition).Magnitude > 100 then -- Если телепортировались далеко
+            if espEnabled then
+                updateESP()
+            end
+        end
+        lastPosition = currentPos
+    end
+end)
+
 -- ===== ФУНКЦИИ СОХРАНЕНИЯ/ЗАГРУЗКИ =====
 local configFileName = "Nez0xConfig.json"
 
@@ -306,14 +406,12 @@ local function loadConfig()
             teleportPoints = decoded.teleportPoints or {}
             guiSize = decoded.guiSize or 1.0
             
-            -- Загружаем цвета
             if decoded.colors then
                 for k, v in pairs(decoded.colors) do
                     colors[k] = Color3.new(v.R, v.G, v.B)
                 end
             end
             
-            -- Загружаем настройки
             if decoded.settings then
                 bgTransparency = decoded.settings.bgTransparency or 0.7
                 aimbotSpeed = decoded.settings.aimbotSpeed or 0.5
@@ -329,7 +427,7 @@ end
 
 loadConfig()
 
--- Применяем размер GUI после загрузки
+-- Применяем размер GUI
 uiContainer.Size = UDim2.new(0, 1000 * guiSize, 0, 700 * guiSize)
 uiContainer.Position = UDim2.new(0.5, -500 * guiSize, 0.5, -350 * guiSize)
 
@@ -337,7 +435,6 @@ uiContainer.Position = UDim2.new(0.5, -500 * guiSize, 0.5, -350 * guiSize)
 local function updateGuiSize(newSize)
     guiSize = math.clamp(newSize, minSize, maxSize)
     
-    -- Обновляем размеры всех элементов
     uiContainer.Size = UDim2.new(0, 1000 * guiSize, 0, 700 * guiSize)
     uiContainer.Position = UDim2.new(0.5, -500 * guiSize, 0.5, -350 * guiSize)
     
@@ -362,13 +459,11 @@ local function updateGuiSize(newSize)
     functionsScrolling.ScrollBarThickness = 4 * guiSize
     functionsLayout.Padding = UDim.new(0, 10 * guiSize)
     
-    -- Перерисовываем текущий модуль
     updateFunctions()
 end
 
 -- ===== РАБОЧИЕ ФУНКЦИИ =====
 
--- Функция рандома для аима
 local function addRandomness(target, amount)
     if amount <= 0 then return target end
     local randomOffset = Vector3.new(
@@ -554,6 +649,11 @@ UIS.InputBegan:Connect(function(input, gp)
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             local mouse = player:GetMouse()
             player.Character:MoveTo(mouse.Hit.Position)
+            -- Обновляем ESP после телепорта
+            if espEnabled then
+                wait(0.1)
+                updateESP()
+            end
         end
     end
 end)
@@ -641,6 +741,7 @@ end
 -- ESP
 local espObjects = {}
 local function updateESP()
+    -- Очищаем старые объекты ESP
     for _, obj in ipairs(espObjects) do
         pcall(function() obj:Destroy() end)
     end
@@ -648,6 +749,7 @@ local function updateESP()
     
     if not espEnabled then return end
     
+    -- Создаем новые объекты ESP для всех игроков
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= player and p.Character then
             local color = friends[p.UserId] and colors.friend or Color3.fromRGB(255, 80, 80)
@@ -658,17 +760,28 @@ local function updateESP()
             highlight.FillTransparency = 0.5
             highlight.OutlineColor = color
             highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlight.ResetOnSpawn = false -- Важно! Не сбрасывать при респавне
             table.insert(espObjects, highlight)
         end
     end
 end
+
+-- Отслеживаем появление новых игроков для ESP
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function()
+        if espEnabled then
+            wait(0.5)
+            updateESP()
+        end
+    end)
+end)
 
 -- UNHOOK
 local function unhook()
     if flyConnection then flyConnection:Disconnect() end
     if particleConnection then particleConnection:Disconnect() end
     if blurEffect then blurEffect:Destroy() end
-    updateESP()
+    updateESP() -- очищаем ESP
     if gui then gui:Destroy() end
     print("✅ Nez0x UI выгружен")
 end
@@ -775,6 +888,11 @@ local function createToggle(text, getVar, setVar)
         status.Text = getVar() and "ON" or "OFF"
         status.TextColor3 = getVar() and colors.toggleOn or colors.textDim
         btn.BackgroundColor3 = getVar() and colors.accent or colors.panelLight
+        
+        -- При изменении состояния ESP сразу обновляем
+        if text == "ESP" then
+            updateESP()
+        end
     end)
 
     return btn
@@ -1215,6 +1333,11 @@ function updateFunctions()
                 tpBtn.MouseButton1Click:Connect(function()
                     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                         player.Character.HumanoidRootPart.CFrame = CFrame.new(pos.X, pos.Y, pos.Z)
+                        -- Обновляем ESP после телепорта
+                        if espEnabled then
+                            wait(0.1)
+                            updateESP()
+                        end
                     end
                 end)
                 
@@ -1381,15 +1504,6 @@ spawn(function()
     end
 end)
 
--- Обновление ESP
-Players.PlayerAdded:Connect(function()
-    if espEnabled then wait(0.5) updateESP() end
-end)
-
-Players.PlayerRemoving:Connect(function()
-    if espEnabled then wait(0.5) updateESP() end
-end)
-
 -- Горячие клавиши
 UIS.InputBegan:Connect(function(input, gp)
     if gp then return end
@@ -1411,8 +1525,8 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
-print("✅ Nez0x UI - ФИНАЛЬНАЯ ВЕРСИЯ")
-print("📌 TELEPORT - есть кнопки СОЗДАНИЯ/ТП/УДАЛЕНИЯ")
-print("📌 THEME - 6 готовых тем + размер GUI")
-print("📌 Размер GUI можно менять ползунком")
-print("📌 Все сохраняется в конфиг")
+print("✅ Nez0x UI - АВТООБНОВЛЕНИЕ")
+print("📌 ESP обновляется при смерти/респавне")
+print("📌 Модули восстанавливаются после ТП")
+print("📌 Периодическое обновление каждые 5 сек")
+print("📌 Все функции следят за персонажем")
