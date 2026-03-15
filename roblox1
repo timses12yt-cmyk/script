@@ -1,4 +1,4 @@
--- Nez0x UI - ULTIMATE (ВСЕ ИСПРАВЛЕНО)
+-- Nez0x UI - ULTIMATE (ФИНАЛЬНАЯ ВЕРСИЯ)
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -10,6 +10,7 @@ local VirtualUser = game:GetService("VirtualUser")
 local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 
@@ -35,9 +36,10 @@ local defaultColors = {
     toggleOff = Color3.fromRGB(45, 45, 50),
     danger = Color3.fromRGB(160, 50, 50),
     friend = Color3.fromRGB(80, 200, 80),
+    item = Color3.fromRGB(255, 200, 50),
 }
 
--- ===== ГОТОВЫЕ ТЕМЫ =====
+-- ===== ГОТОВЫЕ ТЕМЫ (ДОБАВЛЕНО БОЛЬШЕ) =====
 local themes = {
     ["По умолчанию"] = {
         background = Color3.fromRGB(10, 10, 12),
@@ -74,6 +76,51 @@ local themes = {
         accentLight = Color3.fromRGB(255, 220, 100),
         text = Color3.fromRGB(255, 255, 220),
         textDim = Color3.fromRGB(200, 180, 120),
+    },
+    ["Мятная"] = {
+        background = Color3.fromRGB(5, 15, 10),
+        panel = Color3.fromRGB(15, 30, 25),
+        panelLight = Color3.fromRGB(25, 45, 35),
+        accent = Color3.fromRGB(50, 200, 150),
+        accentLight = Color3.fromRGB(100, 230, 180),
+        text = Color3.fromRGB(220, 255, 240),
+        textDim = Color3.fromRGB(150, 200, 180),
+    },
+    ["Фиолетовая"] = {
+        background = Color3.fromRGB(15, 5, 20),
+        panel = Color3.fromRGB(25, 15, 35),
+        panelLight = Color3.fromRGB(40, 25, 50),
+        accent = Color3.fromRGB(150, 50, 200),
+        accentLight = Color3.fromRGB(180, 100, 230),
+        text = Color3.fromRGB(250, 220, 255),
+        textDim = Color3.fromRGB(180, 150, 200),
+    },
+    ["Оранжевая"] = {
+        background = Color3.fromRGB(20, 10, 5),
+        panel = Color3.fromRGB(35, 25, 15),
+        panelLight = Color3.fromRGB(50, 40, 25),
+        accent = Color3.fromRGB(255, 120, 0),
+        accentLight = Color3.fromRGB(255, 160, 50),
+        text = Color3.fromRGB(255, 240, 220),
+        textDim = Color3.fromRGB(200, 160, 120),
+    },
+    ["Зеленая"] = {
+        background = Color3.fromRGB(5, 15, 5),
+        panel = Color3.fromRGB(15, 30, 15),
+        panelLight = Color3.fromRGB(25, 45, 25),
+        accent = Color3.fromRGB(50, 200, 50),
+        accentLight = Color3.fromRGB(100, 230, 100),
+        text = Color3.fromRGB(220, 255, 220),
+        textDim = Color3.fromRGB(150, 200, 150),
+    },
+    ["Розовая"] = {
+        background = Color3.fromRGB(20, 5, 15),
+        panel = Color3.fromRGB(35, 15, 25),
+        panelLight = Color3.fromRGB(50, 25, 40),
+        accent = Color3.fromRGB(255, 100, 150),
+        accentLight = Color3.fromRGB(255, 150, 200),
+        text = Color3.fromRGB(255, 220, 240),
+        textDim = Color3.fromRGB(200, 150, 180),
     },
 }
 
@@ -253,8 +300,21 @@ local bgTransparency = 0.7
 -- Система друзей
 local friends = {}
 
--- Система точек телепортации (исправлено)
+-- Система точек телепортации
 local teleportPoints = {}
+
+-- Настройки ESP (что подсвечивать)
+local espMode = "Все" -- "Все", "Игроки", "Друзья", "Предметы"
+
+-- Настройки Particles
+local particleSettings = {
+    count = 30,
+    size = 0.5,
+    speed = 2,
+    spread = 50,
+    lifetime = 5,
+    floating = true,
+}
 
 -- ===== ФУНКЦИИ СОХРАНЕНИЯ/ЗАГРУЗКИ =====
 local configFileName = "Nez0xConfig.json"
@@ -265,6 +325,8 @@ local function saveConfig()
         teleportPoints = teleportPoints,
         colors = colors,
         guiSize = guiSize,
+        particleSettings = particleSettings,
+        espMode = espMode,
         settings = {
             bgTransparency = bgTransparency,
             aimbotSpeed = aimbotSpeed,
@@ -293,6 +355,8 @@ local function loadConfig()
             friends = decoded.friends or {}
             teleportPoints = decoded.teleportPoints or {}
             guiSize = decoded.guiSize or 1.0
+            particleSettings = decoded.particleSettings or particleSettings
+            espMode = decoded.espMode or "Все"
             
             if decoded.colors then
                 for k, v in pairs(decoded.colors) do
@@ -457,11 +521,12 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- JUMP POWER
+-- JUMP POWER (ИСПРАВЛЕНО!)
 RunService.Heartbeat:Connect(function()
     if jumpEnabled and player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
         if hum then
+            hum.UseJumpPower = true
             hum.JumpPower = jumpPower
         end
     else
@@ -584,44 +649,122 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- PARTICLES
+-- PARTICLES (ИСПРАВЛЕНО - парят на месте и синхрон с темой)
 local particleConnection = nil
+local particles = {}
+
 local function createParticle()
     if not player.Character then return end
     local hrp = player.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     
-    local pos = hrp.Position + Vector3.new(
-        math.random(-50, 50),
-        math.random(-20, 50),
-        math.random(-50, 50)
+    -- Спавним вокруг игрока
+    local angle = math.random() * 2 * math.pi
+    local radius = math.random(10, particleSettings.spread)
+    local height = math.random(-particleSettings.spread/2, particleSettings.spread/2)
+    
+    local spawnPos = hrp.Position + Vector3.new(
+        math.cos(angle) * radius,
+        height + 5,
+        math.sin(angle) * radius
     )
     
+    -- Цвет синхронизирован с темой
+    local color = colors.accentLight
+    
+    -- Основной шар
     local ball = Instance.new("Part")
-    ball.Size = Vector3.new(0.5, 0.5, 0.5)
-    ball.Position = pos
+    ball.Size = Vector3.new(particleSettings.size, particleSettings.size, particleSettings.size)
+    ball.Position = spawnPos
     ball.Anchored = false
     ball.CanCollide = false
     ball.Transparency = 0.2
-    ball.BrickColor = BrickColor.new(Color3.fromRGB(100, 200, 255))
+    ball.BrickColor = BrickColor.new(color)
     ball.Material = Enum.Material.Neon
     ball.Shape = Enum.PartType.Ball
     ball.Parent = Workspace
     
-    ball.Velocity = Vector3.new(math.random(-5,5), math.random(-5,5), math.random(-5,5))
-    Debris:AddItem(ball, 3)
+    -- Свечение
+    local glow = Instance.new("Part")
+    glow.Size = Vector3.new(particleSettings.size * 2, particleSettings.size * 2, particleSettings.size * 2)
+    glow.Position = spawnPos
+    glow.Anchored = false
+    glow.CanCollide = false
+    glow.Transparency = 0.6
+    glow.BrickColor = BrickColor.new(color)
+    glow.Material = Enum.Material.Neon
+    glow.Shape = Enum.PartType.Ball
+    glow.Parent = Workspace
+    
+    -- Свет
+    local light = Instance.new("PointLight")
+    light.Parent = ball
+    light.Color = color
+    light.Range = particleSettings.size * 15
+    light.Brightness = 2
+    
+    -- Движение: плавное покачивание на месте
+    local startPos = spawnPos
+    local time = 0
+    local connection
+    
+    connection = RunService.Heartbeat:Connect(function(dt)
+        if not ball or not ball.Parent then
+            if connection then connection:Disconnect() end
+            return
+        end
+        
+        time = time + dt
+        
+        -- Медленное плавающее движение
+        local offsetX = math.sin(time * 2) * 2
+        local offsetY = math.sin(time * 1.5) * 1.5
+        local offsetZ = math.cos(time * 2) * 2
+        
+        ball.Position = startPos + Vector3.new(offsetX, offsetY, offsetZ)
+        glow.Position = ball.Position
+        light.Parent = ball
+    end)
+    
+    -- Удаление через время
+    Debris:AddItem(ball, particleSettings.lifetime)
+    Debris:AddItem(glow, particleSettings.lifetime)
+    Debris:AddItem(light, particleSettings.lifetime)
+    
+    table.insert(particles, {ball = ball, glow = glow, light = light, connection = connection})
 end
 
 local function updateParticles()
+    -- Очищаем старые частицы
+    for _, particle in ipairs(particles) do
+        pcall(function()
+            if particle.connection then particle.connection:Disconnect() end
+            if particle.ball then particle.ball:Destroy() end
+            if particle.glow then particle.glow:Destroy() end
+            if particle.light then particle.light:Destroy() end
+        end)
+    end
+    particles = {}
+    
     if particleConnection then particleConnection:Disconnect() particleConnection = nil end
+    
     if particlesEnabled then
+        -- Создаем начальные частицы
+        for i = 1, particleSettings.count do
+            createParticle()
+            wait(0.05)
+        end
+        
+        -- Периодически создаем новые
         particleConnection = RunService.Heartbeat:Connect(function()
-            if math.random() < 0.2 then createParticle() end
+            if math.random() < 0.1 then
+                createParticle()
+            end
         end)
     end
 end
 
--- ESP (ИСПРАВЛЕНО - убран ResetOnSpawn)
+-- ESP (С ВЫБОРОМ ЧТО ПОДСВЕЧИВАТЬ)
 local espObjects = {}
 local function updateESP()
     -- Очищаем старые объекты ESP
@@ -632,19 +775,49 @@ local function updateESP()
     
     if not espEnabled then return end
     
-    -- Создаем новые объекты ESP для всех игроков
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player and p.Character then
-            local color = friends[p.UserId] and colors.friend or Color3.fromRGB(255, 80, 80)
-            
-            -- Убираем ResetOnSpawn - его нет у Highlight!
-            local highlight = Instance.new("Highlight")
-            highlight.Parent = p.Character
-            highlight.FillColor = color
-            highlight.FillTransparency = 0.5
-            highlight.OutlineColor = color
-            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            table.insert(espObjects, highlight)
+    -- Подсветка игроков
+    if espMode == "Все" or espMode == "Игроки" or espMode == "Друзья" then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and p.Character then
+                local shouldHighlight = false
+                local color
+                
+                if espMode == "Все" then
+                    shouldHighlight = true
+                    color = friends[p.UserId] and colors.friend or Color3.fromRGB(255, 80, 80)
+                elseif espMode == "Игроки" then
+                    shouldHighlight = true
+                    color = Color3.fromRGB(255, 80, 80)
+                elseif espMode == "Друзья" and friends[p.UserId] then
+                    shouldHighlight = true
+                    color = colors.friend
+                end
+                
+                if shouldHighlight then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Parent = p.Character
+                    highlight.FillColor = color
+                    highlight.FillTransparency = 0.5
+                    highlight.OutlineColor = color
+                    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    table.insert(espObjects, highlight)
+                end
+            end
+        end
+    end
+    
+    -- Подсветка предметов
+    if espMode == "Все" or espMode == "Предметы" then
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            if v:IsA("Tool") or (v:IsA("Part") and v:FindFirstChild("ClickDetector")) then
+                local highlight = Instance.new("Highlight")
+                highlight.Parent = v
+                highlight.FillColor = colors.item
+                highlight.FillTransparency = 0.5
+                highlight.OutlineColor = colors.item
+                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                table.insert(espObjects, highlight)
+            end
         end
     end
 end
@@ -674,7 +847,7 @@ local function unhook()
     if flyConnection then flyConnection:Disconnect() end
     if particleConnection then particleConnection:Disconnect() end
     if blurEffect then blurEffect:Destroy() end
-    updateESP() -- очищаем ESP
+    updateESP()
     if gui then gui:Destroy() end
     print("✅ Nez0x UI выгружен")
 end
@@ -868,7 +1041,7 @@ local function createSlider(text, min, max, getVar, setVar, suffix)
     return container
 end
 
--- Функция обновления контента (ИСПРАВЛЕНО - теперь ТЕЛЕПОРТ и ТЕМЫ работают)
+-- Функция обновления контента
 function updateFunctions()
     for _, child in ipairs(functionsScrolling:GetChildren()) do
         if not child:IsA("UIListLayout") then child:Destroy() end
@@ -921,8 +1094,46 @@ function updateFunctions()
     elseif currentModule == "ESP" then
         createToggle("ESP", function() return espEnabled end, function(v) espEnabled = v updateESP() end)
         
+        -- Выбор режима ESP
+        local modeNote = Instance.new("TextLabel")
+        modeNote.Size = UDim2.new(1, 0, 0, 30 * guiSize)
+        modeNote.BackgroundTransparency = 1
+        modeNote.Text = "Режим подсветки:"
+        modeNote.TextColor3 = colors.textDim
+        modeNote.TextSize = 14 * guiSize
+        modeNote.TextXAlignment = Enum.TextXAlignment.Left
+        modeNote.Parent = functionsScrolling
+        
+        local modes = {"Все", "Игроки", "Друзья", "Предметы"}
+        for _, mode in ipairs(modes) do
+            local modeBtn = Instance.new("TextButton")
+            modeBtn.Size = UDim2.new(1, -10, 0, 35 * guiSize)
+            modeBtn.BackgroundColor3 = (espMode == mode) and colors.accent or colors.panelLight
+            modeBtn.Text = mode
+            modeBtn.TextColor3 = colors.text
+            modeBtn.TextSize = 14 * guiSize
+            modeBtn.Font = Enum.Font.Gotham
+            modeBtn.Parent = functionsScrolling
+            
+            local modeCorner = Instance.new("UICorner")
+            modeCorner.CornerRadius = UDim.new(0, 6 * guiSize)
+            modeCorner.Parent = modeBtn
+            
+            modeBtn.MouseButton1Click:Connect(function()
+                espMode = mode
+                saveConfig()
+                if espEnabled then updateESP() end
+                updateFunctions()
+            end)
+        end
+        
     elseif currentModule == "MISC" then
         createToggle("Particles", function() return particlesEnabled end, function(v) particlesEnabled = v updateParticles() end)
+        createSlider("Кол-во частиц", 5, 100, function() return particleSettings.count end, function(v) particleSettings.count = math.floor(v) if particlesEnabled then updateParticles() end end, "")
+        createSlider("Размер частиц", 0.2, 2, function() return particleSettings.size end, function(v) particleSettings.size = v if particlesEnabled then updateParticles() end end, "")
+        createSlider("Скорость", 1, 5, function() return particleSettings.speed end, function(v) particleSettings.speed = v if particlesEnabled then updateParticles() end end, "")
+        createSlider("Радиус спавна", 20, 200, function() return particleSettings.spread end, function(v) particleSettings.spread = v if particlesEnabled then updateParticles() end end, "")
+        createSlider("Время жизни", 2, 10, function() return particleSettings.lifetime end, function(v) particleSettings.lifetime = v if particlesEnabled then updateParticles() end end, "s")
         createToggle("Auto Attack", function() return autoAttackEnabled end, function(v) autoAttackEnabled = v end)
         createSlider("Attack Range", 5, 50, function() return autoAttackRange end, function(v) autoAttackRange = v end, "")
         
@@ -1054,6 +1265,25 @@ function updateFunctions()
             end
             
             searchResults.Visible = found > 0
+        end)
+        
+        -- Кнопка обновления списка друзей
+        local refreshFriendsBtn = Instance.new("TextButton")
+        refreshFriendsBtn.Size = UDim2.new(1, 0, 0, 35 * guiSize)
+        refreshFriendsBtn.BackgroundColor3 = colors.accent
+        refreshFriendsBtn.Text = "🔄 ОБНОВИТЬ СПИСОК ДРУЗЕЙ"
+        refreshFriendsBtn.TextColor3 = Color3.new(1,1,1)
+        refreshFriendsBtn.TextSize = 14 * guiSize
+        refreshFriendsBtn.Font = Enum.Font.GothamBold
+        refreshFriendsBtn.Parent = functionsScrolling
+        
+        local refreshCorner = Instance.new("UICorner")
+        refreshCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+        refreshCorner.Parent = refreshFriendsBtn
+        
+        refreshFriendsBtn.MouseButton1Click:Connect(function()
+            updateFunctions()
+            if espEnabled then updateESP() end
         end)
         
         -- Список друзей
@@ -1299,6 +1529,126 @@ function updateFunctions()
             end
         end)
         
+        -- ТЕЛЕПОРТ К ИГРОКУ
+        local tpPlayerNote = Instance.new("TextLabel")
+        tpPlayerNote.Size = UDim2.new(1, 0, 0, 30 * guiSize)
+        tpPlayerNote.BackgroundTransparency = 1
+        tpPlayerNote.Text = "👤 ТЕЛЕПОРТ К ИГРОКУ"
+        tpPlayerNote.TextColor3 = colors.accentLight
+        tpPlayerNote.TextSize = 16 * guiSize
+        tpPlayerNote.Font = Enum.Font.GothamBold
+        tpPlayerNote.Parent = functionsScrolling
+        
+        local tpPlayerInput = Instance.new("TextBox")
+        tpPlayerInput.Size = UDim2.new(1, 0, 0, 40 * guiSize)
+        tpPlayerInput.BackgroundColor3 = colors.panelLight
+        tpPlayerInput.PlaceholderText = "Ник игрока"
+        tpPlayerInput.PlaceholderColor3 = colors.textDim
+        tpPlayerInput.Text = ""
+        tpPlayerInput.TextColor3 = colors.text
+        tpPlayerInput.ClearTextOnFocus = false
+        tpPlayerInput.Parent = functionsScrolling
+        
+        local tpPlayerCorner = Instance.new("UICorner")
+        tpPlayerCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+        tpPlayerCorner.Parent = tpPlayerInput
+        
+        local tpPlayerBtn = Instance.new("TextButton")
+        tpPlayerBtn.Size = UDim2.new(1, 0, 0, 40 * guiSize)
+        tpPlayerBtn.BackgroundColor3 = colors.accent
+        tpPlayerBtn.Text = "🔮 ТЕЛЕПОРТИРОВАТЬСЯ"
+        tpPlayerBtn.TextColor3 = Color3.new(1,1,1)
+        tpPlayerBtn.TextSize = 14 * guiSize
+        tpPlayerBtn.Font = Enum.Font.GothamBold
+        tpPlayerBtn.Parent = functionsScrolling
+        
+        local tpPlayerBtnCorner = Instance.new("UICorner")
+        tpPlayerBtnCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+        tpPlayerBtnCorner.Parent = tpPlayerBtn
+        
+        tpPlayerBtn.MouseButton1Click:Connect(function()
+            local targetName = tpPlayerInput.Text
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p.Name:lower():find(targetName:lower()) or p.DisplayName:lower():find(targetName:lower()) then
+                    if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        player.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                    end
+                    tpPlayerInput.Text = ""
+                    break
+                end
+            end
+        end)
+        
+        -- Настройка бинда для ТП к игроку
+        local bindNote = Instance.new("TextLabel")
+        bindNote.Size = UDim2.new(1, 0, 0, 25 * guiSize)
+        bindNote.BackgroundTransparency = 1
+        bindNote.Text = "Горячая клавиша для ТП:"
+        bindNote.TextColor3 = colors.textDim
+        bindNote.TextSize = 12 * guiSize
+        bindNote.TextXAlignment = Enum.TextXAlignment.Left
+        bindNote.Parent = functionsScrolling
+        
+        local bindInput = Instance.new("TextBox")
+        bindInput.Size = UDim2.new(1, 0, 0, 35 * guiSize)
+        bindInput.BackgroundColor3 = colors.panelLight
+        bindInput.PlaceholderText = "Введите клавишу (например: G)"
+        bindInput.PlaceholderColor3 = colors.textDim
+        bindInput.Text = ""
+        bindInput.TextColor3 = colors.text
+        bindInput.ClearTextOnFocus = false
+        bindInput.Parent = functionsScrolling
+        
+        local bindCorner = Instance.new("UICorner")
+        bindCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+        bindCorner.Parent = bindInput
+        
+        local bindBtn = Instance.new("TextButton")
+        bindBtn.Size = UDim2.new(1, 0, 0, 35 * guiSize)
+        bindBtn.BackgroundColor3 = colors.accent
+        bindBtn.Text = "УСТАНОВИТЬ БИНД"
+        bindBtn.TextColor3 = Color3.new(1,1,1)
+        bindBtn.TextSize = 12 * guiSize
+        bindBtn.Font = Enum.Font.GothamBold
+        bindBtn.Parent = functionsScrolling
+        
+        local bindBtnCorner = Instance.new("UICorner")
+        bindBtnCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+        bindBtnCorner.Parent = bindBtn
+        
+        local tpBindKey = nil
+        
+        bindBtn.MouseButton1Click:Connect(function()
+            local keyText = bindInput.Text:upper()
+            if #keyText == 1 then
+                tpBindKey = Enum.KeyCode[keyText]
+                bindInput.Text = "Бинд установлен: " .. keyText
+                wait(1)
+                bindInput.Text = ""
+            end
+        end)
+        
+        UIS.InputBegan:Connect(function(input, gp)
+            if gp then return end
+            if tpBindKey and input.KeyCode == tpBindKey and player.Character then
+                -- ТП к ближайшему игроку
+                local closest = nil
+                local shortest = math.huge
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                        local dist = (player.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
+                        if dist < shortest then
+                            shortest = dist
+                            closest = p
+                        end
+                    end
+                end
+                if closest then
+                    player.Character.HumanoidRootPart.CFrame = closest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                end
+            end
+        end)
+        
     elseif currentModule == "THEME" then
         createSlider("Затемнение фона", 0, 1, function() return bgTransparency end, function(v) bgTransparency = v bgDim.BackgroundTransparency = v end, "")
         
@@ -1339,8 +1689,6 @@ function updateFunctions()
                 modulesPanel.BackgroundColor3 = colors.panel
                 functionsPanel.BackgroundColor3 = colors.panel
                 bgDim.BackgroundColor3 = colors.background
-                
-                -- Обновляем цвета текста во всем UI
                 modulesTitle.TextColor3 = colors.accentLight
                 functionsTitle.TextColor3 = colors.accentLight
                 
@@ -1446,8 +1794,11 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
-print("✅ Nez0x UI - ВСЕ ИСПРАВЛЕНО")
-print("📌 ESP - работает (убрана ошибка ResetOnSpawn)")
+print("✅ Nez0x UI - ФИНАЛЬНАЯ ВЕРСИЯ")
 print("📌 TELEPORT - есть кнопки СОЗДАНИЯ/ТП/УДАЛЕНИЯ")
-print("📌 THEME - меняются цвета текста")
-print("📌 Все модули работают")
+print("📌 FRIENDS - кнопка обновления списка")
+print("📌 PARTICLES - парят на месте, синхрон с темой")
+print("📌 ESP - выбор: Все/Игроки/Друзья/Предметы")
+print("📌 JUMP POWER - ИСПРАВЛЕН")
+print("📌 9 готовых тем")
+print("📌 ТП к игроку с биндом")
