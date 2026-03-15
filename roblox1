@@ -1,4 +1,4 @@
--- Nez0x UI - ULTIMATE (ФИНАЛЬНАЯ ВЕРСИЯ)
+-- Nez0x UI - ULTIMATE (БЕЗ FOV)
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -23,6 +23,134 @@ if not player then
     warn("Игрок не найден!")
     return
 end
+
+-- ===== СИСТЕМА БИНДОВ =====
+local binds = {}
+local bindButtons = {}
+local isSettingBind = false
+local currentBindFunction = nil
+local currentBindName = nil
+local bindGui = nil
+
+local function createBindUI()
+    if bindGui then
+        pcall(function() bindGui:Destroy() end)
+    end
+    
+    bindGui = Instance.new("ScreenGui")
+    bindGui.Name = "BindGUI"
+    bindGui.Parent = CoreGui
+    bindGui.DisplayOrder = 9999999
+    bindGui.IgnoreGuiInset = true
+    
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 300, 0, 150)
+    frame.Position = UDim2.new(0.5, -150, 0.5, -75)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Parent = bindGui
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = frame
+    
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -20, 0, 40)
+    title.Position = UDim2.new(0, 10, 0, 10)
+    title.BackgroundTransparency = 1
+    title.Text = "⌨️ НАСТРОЙКА БИНДА"
+    title.TextColor3 = Color3.fromRGB(220, 220, 255)
+    title.TextSize = 18
+    title.Font = Enum.Font.GothamBold
+    title.Parent = frame
+    
+    local desc = Instance.new("TextLabel")
+    desc.Size = UDim2.new(1, -20, 0, 30)
+    desc.Position = UDim2.new(0, 10, 0, 50)
+    desc.BackgroundTransparency = 1
+    desc.Text = "Нажми любую клавишу..."
+    desc.TextColor3 = Color3.fromRGB(180, 180, 200)
+    desc.TextSize = 14
+    desc.Font = Enum.Font.Gotham
+    desc.Parent = frame
+    
+    local funcLabel = Instance.new("TextLabel")
+    funcLabel.Size = UDim2.new(1, -20, 0, 30)
+    funcLabel.Position = UDim2.new(0, 10, 0, 80)
+    funcLabel.BackgroundTransparency = 1
+    funcLabel.Text = currentBindName or ""
+    funcLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+    funcLabel.TextSize = 14
+    funcLabel.Font = Enum.Font.GothamBold
+    funcLabel.Parent = frame
+    
+    local cancelBtn = Instance.new("TextButton")
+    cancelBtn.Size = UDim2.new(0, 100, 0, 30)
+    cancelBtn.Position = UDim2.new(0.5, -50, 1, -40)
+    cancelBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+    cancelBtn.Text = "ОТМЕНА"
+    cancelBtn.TextColor3 = Color3.new(1, 1, 1)
+    cancelBtn.TextSize = 12
+    cancelBtn.Font = Enum.Font.GothamBold
+    cancelBtn.Parent = frame
+    
+    local cancelCorner = Instance.new("UICorner")
+    cancelCorner.CornerRadius = UDim.new(0, 6)
+    cancelCorner.Parent = cancelBtn
+    
+    cancelBtn.MouseButton1Click:Connect(function()
+        isSettingBind = false
+        currentBindFunction = nil
+        currentBindName = nil
+        if bindGui then bindGui:Destroy() bindGui = nil end
+    end)
+end
+
+local function startBindSetup(name, func)
+    isSettingBind = true
+    currentBindName = name
+    currentBindFunction = func
+    createBindUI()
+end
+
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    
+    if isSettingBind and input.UserInputType == Enum.UserInputType.Keyboard then
+        local key = input.KeyCode
+        if key ~= Enum.KeyCode.Unknown then
+            -- Сохраняем бинд
+            binds[currentBindName] = {
+                key = key,
+                func = currentBindFunction
+            }
+            
+            -- Обновляем текст на кнопке
+            if bindButtons[currentBindName] then
+                bindButtons[currentBindName].Text = string.format("[%s]", tostring(key):gsub("Enum.KeyCode.", ""))
+            end
+            
+            -- Сохраняем в конфиг
+            saveConfig()
+            
+            -- Закрываем UI
+            isSettingBind = false
+            currentBindFunction = nil
+            currentBindName = nil
+            if bindGui then bindGui:Destroy() bindGui = nil end
+        end
+    else
+        -- Проверяем нажатие биндов
+        for name, bind in pairs(binds) do
+            if input.KeyCode == bind.key then
+                bind.func()
+                -- После выполнения функции обновляем интерфейс
+                updateFunctions()
+            end
+        end
+    end
+end)
 
 -- ===== ЦВЕТА ПО УМОЛЧАНИЮ =====
 local defaultColors = {
@@ -120,22 +248,15 @@ dynamicIsland.BorderSizePixel = 0
 dynamicIsland.ZIndex = 2000
 dynamicIsland.Parent = gui
 
--- Скругление как у айфона
 local islandCorner = Instance.new("UICorner")
 islandCorner.CornerRadius = UDim.new(0, 18)
 islandCorner.Parent = dynamicIsland
 
--- Обводка как у айфона
 local islandStroke = Instance.new("UIStroke")
 islandStroke.Color = colors.accentLight
 islandStroke.Thickness = 1
 islandStroke.Transparency = 0.5
 islandStroke.Parent = dynamicIsland
-
--- Блюр эффект (как у айфона)
-local blurEffect = Instance.new("BlurEffect")
-blurEffect.Size = 8
-blurEffect.Parent = dynamicIsland
 
 local timeLabel = Instance.new("TextLabel")
 timeLabel.Name = "TimeLabel"
@@ -310,6 +431,7 @@ local modules = {"COMBAT", "MOVEMENT", "VISUALS", "PLAYER", "ESP", "MISC", "FRIE
 
 -- Состояния функций
 local aimbotEnabled = false
+local aimbotThroughWalls = false
 local flyEnabled = false
 local noclipEnabled = false
 local infJumpEnabled = false
@@ -365,10 +487,12 @@ local function saveConfig()
         guiSize = guiSize,
         particleSettings = particleSettings,
         espMode = espMode,
+        binds = binds,
         settings = {
             bgTransparency = bgTransparency,
             aimbotSpeed = aimbotSpeed,
             aimbotRandom = aimbotRandom,
+            aimbotThroughWalls = aimbotThroughWalls,
             flySpeed = flySpeed,
             speedPower = speedPower,
             jumpPower = jumpPower,
@@ -395,6 +519,7 @@ local function loadConfig()
             guiSize = decoded.guiSize or 1.0
             particleSettings = decoded.particleSettings or particleSettings
             espMode = decoded.espMode or "Все"
+            binds = decoded.binds or {}
             
             if decoded.colors then
                 for k, v in pairs(decoded.colors) do
@@ -406,6 +531,7 @@ local function loadConfig()
                 bgTransparency = decoded.settings.bgTransparency or 0.7
                 aimbotSpeed = decoded.settings.aimbotSpeed or 0.5
                 aimbotRandom = decoded.settings.aimbotRandom or 0.1
+                aimbotThroughWalls = decoded.settings.aimbotThroughWalls or false
                 flySpeed = decoded.settings.flySpeed or 50
                 speedPower = decoded.settings.speedPower or 50
                 jumpPower = decoded.settings.jumpPower or 100
@@ -465,7 +591,35 @@ local function addRandomness(target, amount)
     return target + randomOffset
 end
 
--- AIMBOT
+-- Функция проверки видимости (для аима через стены)
+local function isTargetVisible(targetPart)
+    if aimbotThroughWalls then
+        return true -- Если включен аим через стены - всегда видим
+    end
+    
+    -- Проверка на видимость через рейкаст
+    local camera = Workspace.CurrentCamera
+    local origin = camera.CFrame.Position
+    local target = targetPart.Position
+    
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+    rayParams.FilterDescendantsInstances = {player.Character, camera}
+    
+    local raycastResult = Workspace:Raycast(origin, (target - origin).Unit * (target - origin).Magnitude, rayParams)
+    
+    -- Если рейкаст ничего не задел - цель видна
+    -- Или если задел, но это тот же персонаж
+    if not raycastResult then
+        return true
+    elseif raycastResult.Instance and raycastResult.Instance:IsDescendantOf(targetPart.Parent) then
+        return true
+    end
+    
+    return false
+end
+
+-- AIMBOT (360° - БЕЗ FOV)
 RunService.RenderStepped:Connect(function()
     if aimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) and player.Character then
         local closest = nil
@@ -475,10 +629,18 @@ RunService.RenderStepped:Connect(function()
             if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
                 if friends[p.UserId] then continue end
                 
-                local dist = (player.Character.HumanoidRootPart.Position - p.Character.Head.Position).Magnitude
+                local head = p.Character.Head
+                
+                -- Проверка видимости (учитывает настройку aimbotThroughWalls)
+                if not isTargetVisible(head) then
+                    continue
+                end
+                
+                -- Выбор цели по расстоянию (360° - без FOV)
+                local dist = (player.Character.HumanoidRootPart.Position - head.Position).Magnitude
                 if dist < shortest then
                     shortest = dist
-                    closest = p.Character.Head
+                    closest = head
                 end
             end
         end
@@ -578,12 +740,11 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ALWAYS SPRINT (ИСПРАВЛЕНО - РАБОТАЕТ С ПЕРВОГО КАДРА)
+-- ALWAYS SPRINT
 local sprintConnection = RunService.Heartbeat:Connect(function()
     if alwaysSprintEnabled and player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
         if hum then
-            -- Принудительно устанавливаем скорость бега
             if speedEnabled then
                 hum.WalkSpeed = speedPower
             elseif hum.WalkSpeed < 21 then
@@ -972,58 +1133,6 @@ local function createModuleButton(name)
     return btn
 end
 
-local function createToggle(text, getVar, setVar)
-    local btn = Instance.new("TextButton")
-    btn.Name = text .. "Btn"
-    btn.Size = UDim2.new(1, 0, 0, 40 * guiSize)
-    btn.BackgroundColor3 = getVar() and colors.accent or colors.panelLight
-    btn.Text = ""
-    btn.AutoButtonColor = false
-    btn.ZIndex = 1004
-    btn.Parent = functionsScrolling
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8 * guiSize)
-    corner.Parent = btn
-
-    local txt = Instance.new("TextLabel")
-    txt.BackgroundTransparency = 1
-    txt.Font = Enum.Font.Gotham
-    txt.Text = text
-    txt.TextColor3 = colors.text
-    txt.TextSize = 14 * guiSize
-    txt.Position = UDim2.new(0, 15 * guiSize, 0, 0)
-    txt.Size = UDim2.new(1, -70 * guiSize, 1, 0)
-    txt.TextXAlignment = Enum.TextXAlignment.Left
-    txt.ZIndex = 1005
-    txt.Parent = btn
-
-    local status = Instance.new("TextLabel")
-    status.BackgroundTransparency = 1
-    status.Font = Enum.Font.GothamBold
-    status.Text = getVar() and "ON" or "OFF"
-    status.TextColor3 = getVar() and colors.toggleOn or colors.textDim
-    status.TextSize = 12 * guiSize
-    status.Position = UDim2.new(1, -55 * guiSize, 0, 0)
-    status.Size = UDim2.new(0, 50 * guiSize, 1, 0)
-    status.TextXAlignment = Enum.TextXAlignment.Right
-    status.ZIndex = 1005
-    status.Parent = btn
-    
-    btn.MouseButton1Click:Connect(function()
-        setVar(not getVar())
-        status.Text = getVar() and "ON" or "OFF"
-        status.TextColor3 = getVar() and colors.toggleOn or colors.textDim
-        btn.BackgroundColor3 = getVar() and colors.accent or colors.panelLight
-        
-        if text == "ESP" then
-            updateESP()
-        end
-    end)
-
-    return btn
-end
-
 local function createSlider(text, min, max, getVar, setVar, suffix)
     suffix = suffix or ""
     local container = Instance.new("Frame")
@@ -1102,6 +1211,103 @@ local function createSlider(text, min, max, getVar, setVar, suffix)
     return container
 end
 
+-- ФУНКЦИЯ СОЗДАНИЯ КНОПКИ С БИНДОМ
+local function createBindButton(text, getVar, setVar, bindName)
+    local container = Instance.new("Frame")
+    container.Name = text .. "Container"
+    container.BackgroundTransparency = 1
+    container.Size = UDim2.new(1, 0, 0, 45 * guiSize)
+    container.Parent = functionsScrolling
+
+    -- Основная кнопка-переключатель
+    local mainBtn = Instance.new("TextButton")
+    mainBtn.Name = text .. "MainBtn"
+    mainBtn.Size = UDim2.new(0.7, -5, 0, 40 * guiSize)
+    mainBtn.Position = UDim2.new(0, 0, 0, 0)
+    mainBtn.BackgroundColor3 = getVar() and colors.accent or colors.panelLight
+    mainBtn.Text = ""
+    mainBtn.AutoButtonColor = false
+    mainBtn.ZIndex = 1004
+    mainBtn.Parent = container
+
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+    mainCorner.Parent = mainBtn
+
+    local txt = Instance.new("TextLabel")
+    txt.BackgroundTransparency = 1
+    txt.Font = Enum.Font.Gotham
+    txt.Text = text
+    txt.TextColor3 = colors.text
+    txt.TextSize = 14 * guiSize
+    txt.Position = UDim2.new(0, 10 * guiSize, 0, 0)
+    txt.Size = UDim2.new(1, -60 * guiSize, 1, 0)
+    txt.TextXAlignment = Enum.TextXAlignment.Left
+    txt.ZIndex = 1005
+    txt.Parent = mainBtn
+
+    local status = Instance.new("TextLabel")
+    status.BackgroundTransparency = 1
+    status.Font = Enum.Font.GothamBold
+    status.Text = getVar() and "ON" or "OFF"
+    status.TextColor3 = getVar() and colors.toggleOn or colors.textDim
+    status.TextSize = 12 * guiSize
+    status.Position = UDim2.new(1, -55 * guiSize, 0, 0)
+    status.Size = UDim2.new(0, 50 * guiSize, 1, 0)
+    status.TextXAlignment = Enum.TextXAlignment.Right
+    status.ZIndex = 1005
+    status.Parent = mainBtn
+
+    -- Кнопка для бинда
+    local bindBtn = Instance.new("TextButton")
+    bindBtn.Size = UDim2.new(0.28, 0, 0, 40 * guiSize)
+    bindBtn.Position = UDim2.new(0.72, 0, 0, 0)
+    bindBtn.BackgroundColor3 = colors.panel
+    bindBtn.Text = binds[bindName] and string.format("[%s]", tostring(binds[bindName].key):gsub("Enum.KeyCode.", "")) or "[+]"
+    bindBtn.TextColor3 = colors.accentLight
+    bindBtn.TextSize = 12 * guiSize
+    bindBtn.Font = Enum.Font.GothamBold
+    bindBtn.Parent = container
+
+    local bindCorner = Instance.new("UICorner")
+    bindCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+    bindCorner.Parent = bindBtn
+
+    -- Сохраняем кнопку для обновления текста
+    bindButtons[bindName] = bindBtn
+
+    -- Функция обновления состояния кнопки
+    local function updateButtonState()
+        local state = getVar()
+        status.Text = state and "ON" or "OFF"
+        status.TextColor3 = state and colors.toggleOn or colors.textDim
+        mainBtn.BackgroundColor3 = state and colors.accent or colors.panelLight
+    end
+
+    -- Обработчик основной кнопки
+    mainBtn.MouseButton1Click:Connect(function()
+        setVar(not getVar())
+        updateButtonState()
+        if text == "ESP" then
+            updateESP()
+        end
+    end)
+
+    -- Обработчик кнопки бинда
+    bindBtn.MouseButton1Click:Connect(function()
+        startBindSetup(bindName, function()
+            setVar(not getVar())
+            updateButtonState()
+            if text == "ESP" then
+                updateESP()
+            end
+        end)
+    end)
+
+    -- Возвращаем функцию для внешнего обновления
+    return {main = mainBtn, bind = bindBtn, status = status, update = updateButtonState}
+end
+
 -- Функция обновления контента
 function updateFunctions()
     for _, child in ipairs(functionsScrolling:GetChildren()) do
@@ -1109,29 +1315,30 @@ function updateFunctions()
     end
     
     if currentModule == "COMBAT" then
-        createToggle("Aimbot", function() return aimbotEnabled end, function(v) aimbotEnabled = v end)
+        createBindButton("Aimbot", function() return aimbotEnabled end, function(v) aimbotEnabled = v end, "Aimbot")
+        createBindButton("Аим через стены", function() return aimbotThroughWalls end, function(v) aimbotThroughWalls = v end, "AimThroughWalls")
         createSlider("Скорость аима", 0.1, 1, function() return aimbotSpeed end, function(v) aimbotSpeed = v end, "")
         createSlider("Рандомность", 0, 0.5, function() return aimbotRandom end, function(v) aimbotRandom = v end, "")
         
     elseif currentModule == "MOVEMENT" then
-        createToggle("Fly", function() return flyEnabled end, function(v) flyEnabled = v updateFly() end)
+        createBindButton("Fly", function() return flyEnabled end, function(v) flyEnabled = v updateFly() end, "Fly")
         createSlider("Скорость полета", 10, 200, function() return flySpeed end, function(v) flySpeed = v end, "")
-        createToggle("Noclip", function() return noclipEnabled end, function(v) noclipEnabled = v end)
-        createToggle("Inf Jump", function() return infJumpEnabled end, function(v) infJumpEnabled = v end)
-        createToggle("Speed", function() return speedEnabled end, function(v) speedEnabled = v end)
+        createBindButton("Noclip", function() return noclipEnabled end, function(v) noclipEnabled = v end, "Noclip")
+        createBindButton("Inf Jump", function() return infJumpEnabled end, function(v) infJumpEnabled = v end, "InfJump")
+        createBindButton("Speed", function() return speedEnabled end, function(v) speedEnabled = v end, "Speed")
         createSlider("Speed Power", 10, 200, function() return speedPower end, function(v) speedPower = v end, "")
-        createToggle("Jump Power", function() return jumpEnabled end, function(v) jumpEnabled = v end)
+        createBindButton("Jump Power", function() return jumpEnabled end, function(v) jumpEnabled = v end, "JumpPower")
         createSlider("Jump Power", 10, 200, function() return jumpPower end, function(v) jumpPower = v end, "")
         
     elseif currentModule == "VISUALS" then
-        createToggle("Fullbright", function() return fullbrightEnabled end, function(v) fullbrightEnabled = v updateFullbright() end)
-        createToggle("Blur", function() return blurEnabled end, function(v) blurEnabled = v updateBlur() end)
-        createToggle("No Fog", function() return noFogEnabled end, function(v) noFogEnabled = v updateNoFog() end)
+        createBindButton("Fullbright", function() return fullbrightEnabled end, function(v) fullbrightEnabled = v updateFullbright() end, "Fullbright")
+        createBindButton("Blur", function() return blurEnabled end, function(v) blurEnabled = v updateBlur() end, "Blur")
+        createBindButton("No Fog", function() return noFogEnabled end, function(v) noFogEnabled = v updateNoFog() end, "NoFog")
         
     elseif currentModule == "PLAYER" then
-        createToggle("F+Click TP", function() return clickTpEnabled end, function(v) clickTpEnabled = v end)
-        createToggle("God Mode", function() return godModeEnabled end, function(v) godModeEnabled = v end)
-        createToggle("Infinite Ammo", function() return infiniteAmmoEnabled end, function(v) infiniteAmmoEnabled = v end)
+        createBindButton("F+Click TP", function() return clickTpEnabled end, function(v) clickTpEnabled = v end, "ClickTP")
+        createBindButton("God Mode", function() return godModeEnabled end, function(v) godModeEnabled = v end, "GodMode")
+        createBindButton("Infinite Ammo", function() return infiniteAmmoEnabled end, function(v) infiniteAmmoEnabled = v end, "InfiniteAmmo")
         
         local killBtn = Instance.new("TextButton")
         killBtn.Size = UDim2.new(1, 0, 0, 40 * guiSize)
@@ -1153,7 +1360,7 @@ function updateFunctions()
         end)
         
     elseif currentModule == "ESP" then
-        createToggle("ESP", function() return espEnabled end, function(v) espEnabled = v updateESP() end)
+        createBindButton("ESP", function() return espEnabled end, function(v) espEnabled = v updateESP() end, "ESP")
         
         local modeNote = Instance.new("TextLabel")
         modeNote.Size = UDim2.new(1, 0, 0, 30 * guiSize)
@@ -1188,26 +1395,26 @@ function updateFunctions()
         end
         
     elseif currentModule == "MISC" then
-        createToggle("Particles", function() return particlesEnabled end, function(v) 
+        createBindButton("Particles", function() return particlesEnabled end, function(v) 
             particlesEnabled = v 
             updateParticles()
-        end)
+        end, "Particles")
         createSlider("Кол-во частиц", 5, 100, function() return particleSettings.count end, function(v) particleSettings.count = math.floor(v) if particlesEnabled then updateParticles() end end, "")
         createSlider("Размер частиц", 0.2, 2, function() return particleSettings.size end, function(v) particleSettings.size = v if particlesEnabled then updateParticles() end end, "")
         createSlider("Скорость", 1, 5, function() return particleSettings.speed end, function(v) particleSettings.speed = v if particlesEnabled then updateParticles() end end, "")
         createSlider("Радиус спавна", 20, 200, function() return particleSettings.spread end, function(v) particleSettings.spread = v if particlesEnabled then updateParticles() end end, "")
         createSlider("Время жизни", 2, 10, function() return particleSettings.lifetime end, function(v) particleSettings.lifetime = v if particlesEnabled then updateParticles() end end, "s")
         
-        createToggle("Auto Attack", function() return autoAttackEnabled end, function(v) autoAttackEnabled = v end)
+        createBindButton("Auto Attack", function() return autoAttackEnabled end, function(v) autoAttackEnabled = v end, "AutoAttack")
         createSlider("Attack Range", 5, 50, function() return autoAttackRange end, function(v) autoAttackRange = v end, "")
         
-        createToggle("Always Sprint", function() return alwaysSprintEnabled end, function(v) 
+        createBindButton("Always Sprint", function() return alwaysSprintEnabled end, function(v) 
             alwaysSprintEnabled = v 
-        end)
+        end, "AlwaysSprint")
         
-        createToggle("NoSlow", function() return noSlowEnabled end, function(v) 
+        createBindButton("NoSlow", function() return noSlowEnabled end, function(v) 
             noSlowEnabled = v
-        end)
+        end, "NoSlow")
         
         local unhookBtn = Instance.new("TextButton")
         unhookBtn.Size = UDim2.new(1, 0, 0, 45 * guiSize)
@@ -1802,9 +2009,9 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
-print("✅ Nez0x UI - ФИНАЛЬНАЯ ВЕРСИЯ")
-print("📌 DYNAMIC ISLAND - как на айфоне (в центре сверху)")
-print("📌 ALWAYS SPRINT - РАБОТАЕТ С ПЕРВОГО КАДРА!")
+print("✅ Nez0x UI - ФИНАЛЬНАЯ ВЕРСИЯ (БЕЗ FOV)")
+print("📌 AIM 360° - полный обзор")
+print("📌 БИНДЫ - работают и обновляют GUI")
+print("📌 DYNAMIC ISLAND - как на айфоне")
+print("📌 ALWAYS SPRINT - работает")
 print("📌 NOSLOW - работает")
-print("📌 TELEPORT - есть кнопки")
-print("📌 Увеличен отступ между модулями")
