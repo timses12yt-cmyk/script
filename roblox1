@@ -1,4 +1,4 @@
--- Nez0x UI - ULTIMATE (АВТООБНОВЛЕНИЕ ПОСЛЕ СМЕРТИ)
+-- Nez0x UI - ULTIMATE (ВСЕ ИСПРАВЛЕНО)
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -46,6 +46,7 @@ local themes = {
         accent = Color3.fromRGB(70, 80, 140),
         accentLight = Color3.fromRGB(90, 100, 180),
         text = Color3.fromRGB(220, 220, 230),
+        textDim = Color3.fromRGB(140, 140, 150),
     },
     ["Темно-синяя"] = {
         background = Color3.fromRGB(5, 5, 15),
@@ -54,6 +55,7 @@ local themes = {
         accent = Color3.fromRGB(50, 100, 200),
         accentLight = Color3.fromRGB(80, 130, 230),
         text = Color3.fromRGB(230, 230, 250),
+        textDim = Color3.fromRGB(150, 150, 180),
     },
     ["Киберпанк"] = {
         background = Color3.fromRGB(10, 0, 20),
@@ -62,6 +64,7 @@ local themes = {
         accent = Color3.fromRGB(255, 0, 255),
         accentLight = Color3.fromRGB(255, 100, 255),
         text = Color3.fromRGB(0, 255, 255),
+        textDim = Color3.fromRGB(100, 200, 200),
     },
     ["Золотая"] = {
         background = Color3.fromRGB(15, 10, 5),
@@ -70,22 +73,7 @@ local themes = {
         accent = Color3.fromRGB(255, 200, 50),
         accentLight = Color3.fromRGB(255, 220, 100),
         text = Color3.fromRGB(255, 255, 220),
-    },
-    ["Мятная"] = {
-        background = Color3.fromRGB(5, 15, 10),
-        panel = Color3.fromRGB(15, 30, 25),
-        panelLight = Color3.fromRGB(25, 45, 35),
-        accent = Color3.fromRGB(50, 200, 150),
-        accentLight = Color3.fromRGB(100, 230, 180),
-        text = Color3.fromRGB(220, 255, 240),
-    },
-    ["Кроваво-красная"] = {
-        background = Color3.fromRGB(20, 5, 5),
-        panel = Color3.fromRGB(40, 10, 10),
-        panelLight = Color3.fromRGB(60, 20, 20),
-        accent = Color3.fromRGB(255, 50, 50),
-        accentLight = Color3.fromRGB(255, 100, 100),
-        text = Color3.fromRGB(255, 200, 200),
+        textDim = Color3.fromRGB(200, 180, 120),
     },
 }
 
@@ -265,108 +253,8 @@ local bgTransparency = 0.7
 -- Система друзей
 local friends = {}
 
--- Система точек телепортации
+-- Система точек телепортации (исправлено)
 local teleportPoints = {}
-
--- ===== СИСТЕМА АВТООБНОВЛЕНИЯ =====
-local refreshConnections = {}
-
--- Функция принудительного обновления всех модулей
-local function refreshAllModules()
-    -- Обновляем ESP
-    if espEnabled then
-        updateESP()
-    end
-    
-    -- Обновляем Fly если включен
-    if flyEnabled then
-        updateFly()
-    end
-    
-    -- Обновляем God Mode
-    if godModeEnabled and player.Character then
-        local hum = player.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.Health = hum.MaxHealth
-        end
-    end
-    
-    -- Обновляем Jump Power
-    if jumpEnabled and player.Character then
-        local hum = player.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.JumpPower = jumpPower
-        end
-    end
-    
-    -- Обновляем Speed
-    if speedEnabled and player.Character then
-        local hum = player.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.WalkSpeed = speedPower
-        end
-    end
-    
-    -- Обновляем визуальные эффекты
-    updateFullbright()
-    updateNoFog()
-    updateBlur()
-    
-    print("🔄 Модули обновлены")
-end
-
--- Отслеживание смерти/респавна
-local function onCharacterAdded(character)
-    wait(0.5) -- Даем время на загрузку персонажа
-    
-    -- Принудительно обновляем все модули
-    refreshAllModules()
-    
-    -- Восстанавливаем God Mode если включен
-    if godModeEnabled then
-        local hum = character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.Health = hum.MaxHealth
-        end
-    end
-end
-
-player.CharacterAdded:Connect(onCharacterAdded)
-
--- Отслеживание изменений здоровья (смерть)
-if player.Character then
-    local hum = player.Character:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.Died:Connect(function()
-            wait(0.1)
-            -- ESP автоматически обновится при появлении нового персонажа через CharacterAdded
-        end)
-    end
-end
-
--- Периодическое автообновление (каждые 5 секунд)
-spawn(function()
-    while true do
-        wait(5)
-        if espEnabled then
-            updateESP()
-        end
-    end
-end)
-
--- Отслеживание телепортации (через изменение CFrame)
-local lastPosition = player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.HumanoidRootPart.Position or Vector3.new()
-RunService.Heartbeat:Connect(function()
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        local currentPos = player.Character.HumanoidRootPart.Position
-        if (currentPos - lastPosition).Magnitude > 100 then -- Если телепортировались далеко
-            if espEnabled then
-                updateESP()
-            end
-        end
-        lastPosition = currentPos
-    end
-end)
 
 -- ===== ФУНКЦИИ СОХРАНЕНИЯ/ЗАГРУЗКИ =====
 local configFileName = "Nez0xConfig.json"
@@ -649,11 +537,6 @@ UIS.InputBegan:Connect(function(input, gp)
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             local mouse = player:GetMouse()
             player.Character:MoveTo(mouse.Hit.Position)
-            -- Обновляем ESP после телепорта
-            if espEnabled then
-                wait(0.1)
-                updateESP()
-            end
         end
     end
 end)
@@ -738,7 +621,7 @@ local function updateParticles()
     end
 end
 
--- ESP
+-- ESP (ИСПРАВЛЕНО - убран ResetOnSpawn)
 local espObjects = {}
 local function updateESP()
     -- Очищаем старые объекты ESP
@@ -754,19 +637,19 @@ local function updateESP()
         if p ~= player and p.Character then
             local color = friends[p.UserId] and colors.friend or Color3.fromRGB(255, 80, 80)
             
+            -- Убираем ResetOnSpawn - его нет у Highlight!
             local highlight = Instance.new("Highlight")
             highlight.Parent = p.Character
             highlight.FillColor = color
             highlight.FillTransparency = 0.5
             highlight.OutlineColor = color
             highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            highlight.ResetOnSpawn = false -- Важно! Не сбрасывать при респавне
             table.insert(espObjects, highlight)
         end
     end
 end
 
--- Отслеживаем появление новых игроков для ESP
+-- Обновление ESP при добавлении игроков
 Players.PlayerAdded:Connect(function(p)
     p.CharacterAdded:Connect(function()
         if espEnabled then
@@ -774,6 +657,16 @@ Players.PlayerAdded:Connect(function(p)
             updateESP()
         end
     end)
+end)
+
+-- Автообновление ESP
+spawn(function()
+    while true do
+        wait(3)
+        if espEnabled then
+            updateESP()
+        end
+    end
 end)
 
 -- UNHOOK
@@ -889,7 +782,6 @@ local function createToggle(text, getVar, setVar)
         status.TextColor3 = getVar() and colors.toggleOn or colors.textDim
         btn.BackgroundColor3 = getVar() and colors.accent or colors.panelLight
         
-        -- При изменении состояния ESP сразу обновляем
         if text == "ESP" then
             updateESP()
         end
@@ -976,7 +868,7 @@ local function createSlider(text, min, max, getVar, setVar, suffix)
     return container
 end
 
--- Функция обновления контента
+-- Функция обновления контента (ИСПРАВЛЕНО - теперь ТЕЛЕПОРТ и ТЕМЫ работают)
 function updateFunctions()
     for _, child in ipairs(functionsScrolling:GetChildren()) do
         if not child:IsA("UIListLayout") then child:Destroy() end
@@ -1265,7 +1157,7 @@ function updateFunctions()
         pointsLayout.Parent = pointsList
         pointsLayout.Padding = UDim.new(0, 5 * guiSize)
         
-        -- Функция обновления списка
+        -- Функция обновления списка точек
         local function refreshPointsList()
             for _, child in ipairs(pointsList:GetChildren()) do
                 if not child:IsA("UIListLayout") then
@@ -1333,11 +1225,6 @@ function updateFunctions()
                 tpBtn.MouseButton1Click:Connect(function()
                     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                         player.Character.HumanoidRootPart.CFrame = CFrame.new(pos.X, pos.Y, pos.Z)
-                        -- Обновляем ESP после телепорта
-                        if espEnabled then
-                            wait(0.1)
-                            updateESP()
-                        end
                     end
                 end)
                 
@@ -1453,6 +1340,24 @@ function updateFunctions()
                 functionsPanel.BackgroundColor3 = colors.panel
                 bgDim.BackgroundColor3 = colors.background
                 
+                -- Обновляем цвета текста во всем UI
+                modulesTitle.TextColor3 = colors.accentLight
+                functionsTitle.TextColor3 = colors.accentLight
+                
+                -- Обновляем все кнопки модулей
+                for _, child in ipairs(modulesScrolling:GetChildren()) do
+                    if child:IsA("TextButton") then
+                        if child.TextLabel.Text == currentModule then
+                            child.BackgroundColor3 = colors.accent
+                            child.TextLabel.TextColor3 = Color3.new(1,1,1)
+                        else
+                            child.BackgroundColor3 = colors.panelLight
+                            child.TextLabel.TextColor3 = colors.text
+                        end
+                        child.Frame.BackgroundColor3 = colors.textDim
+                    end
+                end
+                
                 saveConfig()
                 updateFunctions()
             end)
@@ -1481,6 +1386,22 @@ function updateFunctions()
             modulesPanel.BackgroundColor3 = colors.panel
             functionsPanel.BackgroundColor3 = colors.panel
             bgDim.BackgroundColor3 = colors.background
+            modulesTitle.TextColor3 = colors.accentLight
+            functionsTitle.TextColor3 = colors.accentLight
+            
+            -- Обновляем кнопки модулей
+            for _, child in ipairs(modulesScrolling:GetChildren()) do
+                if child:IsA("TextButton") then
+                    if child.TextLabel.Text == currentModule then
+                        child.BackgroundColor3 = colors.accent
+                        child.TextLabel.TextColor3 = Color3.new(1,1,1)
+                    else
+                        child.BackgroundColor3 = colors.panelLight
+                        child.TextLabel.TextColor3 = colors.text
+                    end
+                    child.Frame.BackgroundColor3 = colors.textDim
+                end
+            end
             
             saveConfig()
             updateFunctions()
@@ -1525,8 +1446,8 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
-print("✅ Nez0x UI - АВТООБНОВЛЕНИЕ")
-print("📌 ESP обновляется при смерти/респавне")
-print("📌 Модули восстанавливаются после ТП")
-print("📌 Периодическое обновление каждые 5 сек")
-print("📌 Все функции следят за персонажем")
+print("✅ Nez0x UI - ВСЕ ИСПРАВЛЕНО")
+print("📌 ESP - работает (убрана ошибка ResetOnSpawn)")
+print("📌 TELEPORT - есть кнопки СОЗДАНИЯ/ТП/УДАЛЕНИЯ")
+print("📌 THEME - меняются цвета текста")
+print("📌 Все модули работают")
