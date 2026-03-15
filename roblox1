@@ -11,7 +11,6 @@ local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local Stats = game:GetService("Stats")
 
 local player = Players.LocalPlayer
@@ -110,44 +109,65 @@ local guiSize = 1.0
 local minSize = 0.7
 local maxSize = 1.5
 
--- ===== ДИНАМИЧЕСКИЙ ОСТРОВОК =====
+-- ===== ДИНАМИЧЕСКИЙ ОСТРОВОК (КАК НА АЙФОНЕ) =====
 local dynamicIsland = Instance.new("Frame")
 dynamicIsland.Name = "DynamicIsland"
-dynamicIsland.Size = UDim2.new(0, 200, 0, 50)
-dynamicIsland.Position = UDim2.new(0.5, -100, 0, 20)
+dynamicIsland.Size = UDim2.new(0, 180, 0, 36)
+dynamicIsland.Position = UDim2.new(0.5, -90, 0, 12)
 dynamicIsland.BackgroundColor3 = colors.panel
-dynamicIsland.BackgroundTransparency = 0.2
+dynamicIsland.BackgroundTransparency = 0.15
 dynamicIsland.BorderSizePixel = 0
 dynamicIsland.ZIndex = 2000
 dynamicIsland.Parent = gui
 
+-- Скругление как у айфона
 local islandCorner = Instance.new("UICorner")
-islandCorner.CornerRadius = UDim.new(0, 25)
+islandCorner.CornerRadius = UDim.new(0, 18)
 islandCorner.Parent = dynamicIsland
 
+-- Обводка как у айфона
 local islandStroke = Instance.new("UIStroke")
 islandStroke.Color = colors.accentLight
 islandStroke.Thickness = 1
+islandStroke.Transparency = 0.5
 islandStroke.Parent = dynamicIsland
+
+-- Блюр эффект (как у айфона)
+local blurEffect = Instance.new("BlurEffect")
+blurEffect.Size = 8
+blurEffect.Parent = dynamicIsland
 
 local timeLabel = Instance.new("TextLabel")
 timeLabel.Name = "TimeLabel"
 timeLabel.Size = UDim2.new(1, 0, 1, 0)
 timeLabel.BackgroundTransparency = 1
-timeLabel.Text = "00:00:00"
+timeLabel.Text = "00:00"
 timeLabel.TextColor3 = colors.text
-timeLabel.TextSize = 20
+timeLabel.TextSize = 16
 timeLabel.Font = Enum.Font.GothamBold
 timeLabel.ZIndex = 2001
 timeLabel.Parent = dynamicIsland
+
+-- Анимация при наведении
+dynamicIsland.MouseEnter:Connect(function()
+    TweenService:Create(dynamicIsland, TweenInfo.new(0.2), {Size = UDim2.new(0, 200, 0, 40)}):Play()
+    TweenService:Create(dynamicIsland, TweenInfo.new(0.2), {Position = UDim2.new(0.5, -100, 0, 10)}):Play()
+    timeLabel.TextSize = 18
+end)
+
+dynamicIsland.MouseLeave:Connect(function()
+    TweenService:Create(dynamicIsland, TweenInfo.new(0.2), {Size = UDim2.new(0, 180, 0, 36)}):Play()
+    TweenService:Create(dynamicIsland, TweenInfo.new(0.2), {Position = UDim2.new(0.5, -90, 0, 12)}):Play()
+    timeLabel.TextSize = 16
+end)
 
 -- Обновление времени
 spawn(function()
     while true do
         local dateTime = os.date("*t")
-        local timeString = string.format("%02d:%02d:%02d", dateTime.hour, dateTime.min, dateTime.sec)
+        local timeString = string.format("%02d:%02d", dateTime.hour, dateTime.min)
         timeLabel.Text = timeString
-        wait(0.1)
+        wait(1)
     end
 end)
 
@@ -193,8 +213,8 @@ local modulesPanel = Instance.new("Frame")
 modulesPanel.Name = "ModulesPanel"
 modulesPanel.BackgroundColor3 = colors.panel
 modulesPanel.BorderSizePixel = 0
-modulesPanel.Size = UDim2.new(0, 220 * guiSize, 1, -40 * guiSize) -- Уменьшил высоту
-modulesPanel.Position = UDim2.new(0, 0, 0, 20 * guiSize) -- Добавил отступ сверху
+modulesPanel.Size = UDim2.new(0, 220 * guiSize, 1, -40 * guiSize)
+modulesPanel.Position = UDim2.new(0, 0, 0, 20 * guiSize)
 modulesPanel.ZIndex = 1002
 modulesPanel.Parent = uiContainer
 
@@ -241,8 +261,8 @@ local functionsPanel = Instance.new("Frame")
 functionsPanel.Name = "FunctionsPanel"
 functionsPanel.BackgroundColor3 = colors.panel
 functionsPanel.BorderSizePixel = 0
-functionsPanel.Size = UDim2.new(1, -240 * guiSize, 1, -40 * guiSize) -- Уменьшил высоту
-functionsPanel.Position = UDim2.new(0, 235 * guiSize, 0, 20 * guiSize) -- Добавил отступ сверху
+functionsPanel.Size = UDim2.new(1, -240 * guiSize, 1, -40 * guiSize)
+functionsPanel.Position = UDim2.new(0, 235 * guiSize, 0, 20 * guiSize)
 functionsPanel.ZIndex = 1002
 functionsPanel.Parent = uiContainer
 
@@ -558,12 +578,12 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ALWAYS SPRINT (ИСПРАВЛЕНО!)
-RunService.Heartbeat:Connect(function()
+-- ALWAYS SPRINT (ИСПРАВЛЕНО - РАБОТАЕТ С ПЕРВОГО КАДРА)
+local sprintConnection = RunService.Heartbeat:Connect(function()
     if alwaysSprintEnabled and player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
         if hum then
-            -- Принудительно устанавливаем скорость бега каждый кадр
+            -- Принудительно устанавливаем скорость бега
             if speedEnabled then
                 hum.WalkSpeed = speedPower
             elseif hum.WalkSpeed < 21 then
@@ -1783,8 +1803,8 @@ UIS.InputBegan:Connect(function(input, gp)
 end)
 
 print("✅ Nez0x UI - ФИНАЛЬНАЯ ВЕРСИЯ")
-print("📌 DYNAMIC ISLAND - время в центре")
-print("📌 ALWAYS SPRINT - РАБОТАЕТ!")
+print("📌 DYNAMIC ISLAND - как на айфоне (в центре сверху)")
+print("📌 ALWAYS SPRINT - РАБОТАЕТ С ПЕРВОГО КАДРА!")
 print("📌 NOSLOW - работает")
 print("📌 TELEPORT - есть кнопки")
 print("📌 Увеличен отступ между модулями")
