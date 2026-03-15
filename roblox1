@@ -1,4 +1,4 @@
--- Nez0x UI - ULTIMATE (БЕЗ FOV)
+-- Nez0x UI - ULTIMATE (С ЗАЩИТОЙ)
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 local Stats = game:GetService("Stats")
+local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 
@@ -23,6 +24,38 @@ if not player then
     warn("Игрок не найден!")
     return
 end
+
+-- ===== СИСТЕМА ЗАЩИТЫ =====
+local codeVerified = false
+local codeAttempts = 0
+local maxAttempts = 3
+local correctCode = "6767"
+local kickMessage = "зря ты туда полез..."
+
+-- Функция для кика
+local function kickPlayer()
+    pcall(function()
+        player:Kick(kickMessage)
+    end)
+    
+    -- Если Kick не сработал, пробуем телепортнуть в пустоту
+    pcall(function()
+        TeleportService:Teleport(0, player)
+    end)
+    
+    -- Если и это не сработало, удаляем GUI
+    pcall(function()
+        if gui then gui:Destroy() end
+    end)
+end
+
+-- Запускаем таймер на 60 секунд
+spawn(function()
+    wait(60)
+    if not codeVerified then
+        kickPlayer()
+    end
+end)
 
 -- ===== СИСТЕМА БИНДОВ =====
 local binds = {}
@@ -1873,6 +1906,88 @@ function updateFunctions()
         updatePointsList()
         
     elseif currentModule == "THEME" then
+        -- Секция проверки кода
+        local codeNote = Instance.new("TextLabel")
+        codeNote.Size = UDim2.new(1, -10, 0, 30 * guiSize)
+        codeNote.BackgroundTransparency = 1
+        codeNote.Text = "🔐 ВВЕДИТЕ КОД ДОСТУПА"
+        codeNote.TextColor3 = colors.danger
+        codeNote.TextSize = 16 * guiSize
+        codeNote.Font = Enum.Font.GothamBold
+        codeNote.Parent = functionsScrolling
+
+        local codeInput = Instance.new("TextBox")
+        codeInput.Size = UDim2.new(1, -10, 0, 45 * guiSize)
+        codeInput.BackgroundColor3 = colors.panelLight
+        codeInput.PlaceholderText = "Введите код"
+        codeInput.PlaceholderColor3 = colors.textDim
+        codeInput.Text = ""
+        codeInput.TextColor3 = colors.text
+        codeInput.TextSize = 20 * guiSize
+        codeInput.Font = Enum.Font.GothamBold
+        codeInput.ClearTextOnFocus = true
+        codeInput.Parent = functionsScrolling
+
+        local codeCorner = Instance.new("UICorner")
+        codeCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+        codeCorner.Parent = codeInput
+
+        local verifyBtn = Instance.new("TextButton")
+        verifyBtn.Size = UDim2.new(1, -10, 0, 40 * guiSize)
+        verifyBtn.BackgroundColor3 = colors.accent
+        verifyBtn.Text = "ПРОВЕРИТЬ КОД"
+        verifyBtn.TextColor3 = Color3.new(1,1,1)
+        verifyBtn.TextSize = 14 * guiSize
+        verifyBtn.Font = Enum.Font.GothamBold
+        verifyBtn.Parent = functionsScrolling
+
+        local verifyCorner = Instance.new("UICorner")
+        verifyCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+        verifyCorner.Parent = verifyBtn
+
+        local statusLabel = Instance.new("TextLabel")
+        statusLabel.Size = UDim2.new(1, -10, 0, 25 * guiSize)
+        statusLabel.BackgroundTransparency = 1
+        statusLabel.Text = codeVerified and "✅ КОД ПРИНЯТ" or "⏳ Ожидание кода..."
+        statusLabel.TextColor3 = codeVerified and colors.toggleOn or colors.textDim
+        statusLabel.TextSize = 12 * guiSize
+        statusLabel.Font = Enum.Font.Gotham
+        statusLabel.Parent = functionsScrolling
+
+        verifyBtn.MouseButton1Click:Connect(function()
+            if codeVerified then return end
+            
+            local enteredCode = codeInput.Text
+            codeAttempts = codeAttempts + 1
+            
+            if enteredCode == correctCode then
+                codeVerified = true
+                statusLabel.Text = "✅ КОД ПРИНЯТ"
+                statusLabel.TextColor3 = colors.toggleOn
+                codeInput.Text = ""
+                print("✅ Доступ разрешен")
+            else
+                if codeAttempts >= maxAttempts then
+                    statusLabel.Text = "❌ ПРЕВЫШЕНО КОЛИЧЕСТВО ПОПЫТОК"
+                    statusLabel.TextColor3 = colors.danger
+                    wait(1)
+                    kickPlayer()
+                else
+                    statusLabel.Text = string.format("❌ НЕВЕРНЫЙ КОД (осталось %d попыток)", maxAttempts - codeAttempts)
+                    statusLabel.TextColor3 = colors.danger
+                    codeInput.Text = ""
+                end
+            end
+        end)
+
+        -- Разделитель
+        local separator = Instance.new("Frame")
+        separator.Size = UDim2.new(1, -10, 0, 1 * guiSize)
+        separator.BackgroundColor3 = colors.textDim
+        separator.BackgroundTransparency = 0.5
+        separator.Parent = functionsScrolling
+
+        -- Обычные настройки темы
         createSlider("Затемнение фона", 0, 1, function() return bgTransparency end, function(v) bgTransparency = v bgDim.BackgroundTransparency = v end, "")
         
         createSlider("Размер GUI", minSize, maxSize, function() return guiSize end, function(v) updateGuiSize(v) saveConfig() end, "x")
@@ -2009,9 +2124,8 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
-print("✅ Nez0x UI - ФИНАЛЬНАЯ ВЕРСИЯ (БЕЗ FOV)")
+print("✅ Nez0x UI - ФИНАЛЬНАЯ ВЕРСИЯ С ЗАЩИТОЙ")
 print("📌 AIM 360° - полный обзор")
 print("📌 БИНДЫ - работают и обновляют GUI")
 print("📌 DYNAMIC ISLAND - как на айфоне")
-print("📌 ALWAYS SPRINT - работает")
-print("📌 NOSLOW - работает")
+print("📌 ЗАЩИТА - код 6767 (60 секунд)")
