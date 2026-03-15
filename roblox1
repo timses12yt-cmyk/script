@@ -11,6 +11,8 @@ local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Stats = game:GetService("Stats")
 
 local player = Players.LocalPlayer
 
@@ -39,7 +41,7 @@ local defaultColors = {
     item = Color3.fromRGB(255, 200, 50),
 }
 
--- ===== ГОТОВЫЕ ТЕМЫ (ДОБАВЛЕНО БОЛЬШЕ) =====
+-- ===== ГОТОВЫЕ ТЕМЫ =====
 local themes = {
     ["По умолчанию"] = {
         background = Color3.fromRGB(10, 10, 12),
@@ -95,33 +97,6 @@ local themes = {
         text = Color3.fromRGB(250, 220, 255),
         textDim = Color3.fromRGB(180, 150, 200),
     },
-    ["Оранжевая"] = {
-        background = Color3.fromRGB(20, 10, 5),
-        panel = Color3.fromRGB(35, 25, 15),
-        panelLight = Color3.fromRGB(50, 40, 25),
-        accent = Color3.fromRGB(255, 120, 0),
-        accentLight = Color3.fromRGB(255, 160, 50),
-        text = Color3.fromRGB(255, 240, 220),
-        textDim = Color3.fromRGB(200, 160, 120),
-    },
-    ["Зеленая"] = {
-        background = Color3.fromRGB(5, 15, 5),
-        panel = Color3.fromRGB(15, 30, 15),
-        panelLight = Color3.fromRGB(25, 45, 25),
-        accent = Color3.fromRGB(50, 200, 50),
-        accentLight = Color3.fromRGB(100, 230, 100),
-        text = Color3.fromRGB(220, 255, 220),
-        textDim = Color3.fromRGB(150, 200, 150),
-    },
-    ["Розовая"] = {
-        background = Color3.fromRGB(20, 5, 15),
-        panel = Color3.fromRGB(35, 15, 25),
-        panelLight = Color3.fromRGB(50, 25, 40),
-        accent = Color3.fromRGB(255, 100, 150),
-        accentLight = Color3.fromRGB(255, 150, 200),
-        text = Color3.fromRGB(255, 220, 240),
-        textDim = Color3.fromRGB(200, 150, 180),
-    },
 }
 
 -- Текущие цвета
@@ -134,6 +109,47 @@ end
 local guiSize = 1.0
 local minSize = 0.7
 local maxSize = 1.5
+
+-- ===== ДИНАМИЧЕСКИЙ ОСТРОВОК =====
+local dynamicIsland = Instance.new("Frame")
+dynamicIsland.Name = "DynamicIsland"
+dynamicIsland.Size = UDim2.new(0, 200, 0, 50)
+dynamicIsland.Position = UDim2.new(0.5, -100, 0, 20)
+dynamicIsland.BackgroundColor3 = colors.panel
+dynamicIsland.BackgroundTransparency = 0.2
+dynamicIsland.BorderSizePixel = 0
+dynamicIsland.ZIndex = 2000
+dynamicIsland.Parent = gui
+
+local islandCorner = Instance.new("UICorner")
+islandCorner.CornerRadius = UDim.new(0, 25)
+islandCorner.Parent = dynamicIsland
+
+local islandStroke = Instance.new("UIStroke")
+islandStroke.Color = colors.accentLight
+islandStroke.Thickness = 1
+islandStroke.Parent = dynamicIsland
+
+local timeLabel = Instance.new("TextLabel")
+timeLabel.Name = "TimeLabel"
+timeLabel.Size = UDim2.new(1, 0, 1, 0)
+timeLabel.BackgroundTransparency = 1
+timeLabel.Text = "00:00:00"
+timeLabel.TextColor3 = colors.text
+timeLabel.TextSize = 20
+timeLabel.Font = Enum.Font.GothamBold
+timeLabel.ZIndex = 2001
+timeLabel.Parent = dynamicIsland
+
+-- Обновление времени
+spawn(function()
+    while true do
+        local dateTime = os.date("*t")
+        local timeString = string.format("%02d:%02d:%02d", dateTime.hour, dateTime.min, dateTime.sec)
+        timeLabel.Text = timeString
+        wait(0.1)
+    end
+end)
 
 -- ===== СОЗДАНИЕ GUI =====
 local gui = Instance.new("ScreenGui")
@@ -172,12 +188,13 @@ uiContainer.ZIndex = 1001
 uiContainer.Visible = true
 uiContainer.Parent = gui
 
--- Левая панель - модули
+-- Левая панель - модули (УВЕЛИЧЕН ОТСТУП)
 local modulesPanel = Instance.new("Frame")
 modulesPanel.Name = "ModulesPanel"
 modulesPanel.BackgroundColor3 = colors.panel
 modulesPanel.BorderSizePixel = 0
-modulesPanel.Size = UDim2.new(0, 220 * guiSize, 1, 0)
+modulesPanel.Size = UDim2.new(0, 220 * guiSize, 1, -40 * guiSize) -- Уменьшил высоту
+modulesPanel.Position = UDim2.new(0, 0, 0, 20 * guiSize) -- Добавил отступ сверху
 modulesPanel.ZIndex = 1002
 modulesPanel.Parent = uiContainer
 
@@ -193,7 +210,7 @@ modulesTitle.Font = Enum.Font.GothamBold
 modulesTitle.Text = "МОДУЛИ"
 modulesTitle.TextColor3 = colors.accentLight
 modulesTitle.TextSize = 20 * guiSize
-modulesTitle.Position = UDim2.new(0, 20 * guiSize, 0, 20 * guiSize)
+modulesTitle.Position = UDim2.new(0, 20 * guiSize, 0, 10 * guiSize)
 modulesTitle.Size = UDim2.new(1, -40 * guiSize, 0, 30 * guiSize)
 modulesTitle.TextXAlignment = Enum.TextXAlignment.Left
 modulesTitle.ZIndex = 1003
@@ -204,8 +221,8 @@ local modulesScrolling = Instance.new("ScrollingFrame")
 modulesScrolling.Name = "ModulesScrolling"
 modulesScrolling.BackgroundTransparency = 1
 modulesScrolling.BorderSizePixel = 0
-modulesScrolling.Position = UDim2.new(0, 0, 0, 60 * guiSize)
-modulesScrolling.Size = UDim2.new(1, 0, 1, -70 * guiSize)
+modulesScrolling.Position = UDim2.new(0, 0, 0, 50 * guiSize)
+modulesScrolling.Size = UDim2.new(1, 0, 1, -60 * guiSize)
 modulesScrolling.CanvasSize = UDim2.new(0, 0, 0, 0)
 modulesScrolling.ScrollBarThickness = 4 * guiSize
 modulesScrolling.ScrollBarImageColor3 = colors.accent
@@ -219,13 +236,13 @@ modulesLayout.SortOrder = Enum.SortOrder.LayoutOrder
 modulesLayout.Padding = UDim.new(0, 8 * guiSize)
 modulesLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
--- Правая панель - функции
+-- Правая панель - функции (УВЕЛИЧЕН ОТСТУП)
 local functionsPanel = Instance.new("Frame")
 functionsPanel.Name = "FunctionsPanel"
 functionsPanel.BackgroundColor3 = colors.panel
 functionsPanel.BorderSizePixel = 0
-functionsPanel.Size = UDim2.new(1, -240 * guiSize, 1, 0)
-functionsPanel.Position = UDim2.new(0, 235 * guiSize, 0, 0)
+functionsPanel.Size = UDim2.new(1, -240 * guiSize, 1, -40 * guiSize) -- Уменьшил высоту
+functionsPanel.Position = UDim2.new(0, 235 * guiSize, 0, 20 * guiSize) -- Добавил отступ сверху
 functionsPanel.ZIndex = 1002
 functionsPanel.Parent = uiContainer
 
@@ -241,7 +258,7 @@ functionsTitle.Font = Enum.Font.GothamBold
 functionsTitle.Text = "▸ COMBAT"
 functionsTitle.TextColor3 = colors.accentLight
 functionsTitle.TextSize = 22 * guiSize
-functionsTitle.Position = UDim2.new(0, 20 * guiSize, 0, 20 * guiSize)
+functionsTitle.Position = UDim2.new(0, 20 * guiSize, 0, 10 * guiSize)
 functionsTitle.Size = UDim2.new(1, -40 * guiSize, 0, 35 * guiSize)
 functionsTitle.TextXAlignment = Enum.TextXAlignment.Left
 functionsTitle.ZIndex = 1003
@@ -252,8 +269,8 @@ local functionsScrolling = Instance.new("ScrollingFrame")
 functionsScrolling.Name = "FunctionsScrolling"
 functionsScrolling.BackgroundTransparency = 1
 functionsScrolling.BorderSizePixel = 0
-functionsScrolling.Position = UDim2.new(0, 20 * guiSize, 0, 65 * guiSize)
-functionsScrolling.Size = UDim2.new(1, -40 * guiSize, 1, -85 * guiSize)
+functionsScrolling.Position = UDim2.new(0, 20 * guiSize, 0, 55 * guiSize)
+functionsScrolling.Size = UDim2.new(1, -40 * guiSize, 1, -65 * guiSize)
 functionsScrolling.CanvasSize = UDim2.new(0, 0, 0, 0)
 functionsScrolling.ScrollBarThickness = 4 * guiSize
 functionsScrolling.ScrollBarImageColor3 = colors.accent
@@ -287,6 +304,8 @@ local infiniteAmmoEnabled = false
 local espEnabled = false
 local autoAttackEnabled = false
 local particlesEnabled = false
+local alwaysSprintEnabled = false
+local noSlowEnabled = false
 
 -- Настройки
 local aimbotSpeed = 0.5
@@ -304,7 +323,7 @@ local friends = {}
 local teleportPoints = {}
 
 -- Настройки ESP (что подсвечивать)
-local espMode = "Все" -- "Все", "Игроки", "Друзья", "Предметы"
+local espMode = "Все"
 
 -- Настройки Particles
 local particleSettings = {
@@ -313,7 +332,6 @@ local particleSettings = {
     speed = 2,
     spread = 50,
     lifetime = 5,
-    floating = true,
 }
 
 -- ===== ФУНКЦИИ СОХРАНЕНИЯ/ЗАГРУЗКИ =====
@@ -390,24 +408,25 @@ local function updateGuiSize(newSize)
     uiContainer.Size = UDim2.new(0, 1000 * guiSize, 0, 700 * guiSize)
     uiContainer.Position = UDim2.new(0.5, -500 * guiSize, 0.5, -350 * guiSize)
     
-    modulesPanel.Size = UDim2.new(0, 220 * guiSize, 1, 0)
+    modulesPanel.Size = UDim2.new(0, 220 * guiSize, 1, -40 * guiSize)
+    modulesPanel.Position = UDim2.new(0, 0, 0, 20 * guiSize)
     modulesCorner.CornerRadius = UDim.new(0, 12 * guiSize)
     modulesTitle.TextSize = 20 * guiSize
-    modulesTitle.Position = UDim2.new(0, 20 * guiSize, 0, 20 * guiSize)
+    modulesTitle.Position = UDim2.new(0, 20 * guiSize, 0, 10 * guiSize)
     modulesTitle.Size = UDim2.new(1, -40 * guiSize, 0, 30 * guiSize)
-    modulesScrolling.Position = UDim2.new(0, 0, 0, 60 * guiSize)
-    modulesScrolling.Size = UDim2.new(1, 0, 1, -70 * guiSize)
+    modulesScrolling.Position = UDim2.new(0, 0, 0, 50 * guiSize)
+    modulesScrolling.Size = UDim2.new(1, 0, 1, -60 * guiSize)
     modulesScrolling.ScrollBarThickness = 4 * guiSize
     modulesLayout.Padding = UDim.new(0, 8 * guiSize)
     
-    functionsPanel.Size = UDim2.new(1, -240 * guiSize, 1, 0)
-    functionsPanel.Position = UDim2.new(0, 235 * guiSize, 0, 0)
+    functionsPanel.Size = UDim2.new(1, -240 * guiSize, 1, -40 * guiSize)
+    functionsPanel.Position = UDim2.new(0, 235 * guiSize, 0, 20 * guiSize)
     functionsCorner.CornerRadius = UDim.new(0, 12 * guiSize)
     functionsTitle.TextSize = 22 * guiSize
-    functionsTitle.Position = UDim2.new(0, 20 * guiSize, 0, 20 * guiSize)
+    functionsTitle.Position = UDim2.new(0, 20 * guiSize, 0, 10 * guiSize)
     functionsTitle.Size = UDim2.new(1, -40 * guiSize, 0, 35 * guiSize)
-    functionsScrolling.Position = UDim2.new(0, 20 * guiSize, 0, 65 * guiSize)
-    functionsScrolling.Size = UDim2.new(1, -40 * guiSize, 1, -85 * guiSize)
+    functionsScrolling.Position = UDim2.new(0, 20 * guiSize, 0, 55 * guiSize)
+    functionsScrolling.Size = UDim2.new(1, -40 * guiSize, 1, -65 * guiSize)
     functionsScrolling.ScrollBarThickness = 4 * guiSize
     functionsLayout.Padding = UDim.new(0, 10 * guiSize)
     
@@ -521,7 +540,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- JUMP POWER (ИСПРАВЛЕНО!)
+-- JUMP POWER
 RunService.Heartbeat:Connect(function()
     if jumpEnabled and player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
@@ -534,6 +553,35 @@ RunService.Heartbeat:Connect(function()
             local hum = player.Character:FindFirstChildOfClass("Humanoid")
             if hum and hum.JumpPower ~= 50 then
                 hum.JumpPower = 50
+            end
+        end
+    end
+end)
+
+-- ALWAYS SPRINT (ИСПРАВЛЕНО!)
+RunService.Heartbeat:Connect(function()
+    if alwaysSprintEnabled and player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            -- Принудительно устанавливаем скорость бега каждый кадр
+            if speedEnabled then
+                hum.WalkSpeed = speedPower
+            elseif hum.WalkSpeed < 21 then
+                hum.WalkSpeed = 21
+            end
+        end
+    end
+end)
+
+-- NOSLOW
+RunService.Heartbeat:Connect(function()
+    if noSlowEnabled and player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            if hum.WalkSpeed < 12 and not speedEnabled then
+                hum.WalkSpeed = 16
+            elseif speedEnabled and hum.WalkSpeed < speedPower then
+                hum.WalkSpeed = speedPower
             end
         end
     end
@@ -649,7 +697,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- PARTICLES (ИСПРАВЛЕНО - парят на месте и синхрон с темой)
+-- PARTICLES
 local particleConnection = nil
 local particles = {}
 
@@ -658,7 +706,6 @@ local function createParticle()
     local hrp = player.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     
-    -- Спавним вокруг игрока
     local angle = math.random() * 2 * math.pi
     local radius = math.random(10, particleSettings.spread)
     local height = math.random(-particleSettings.spread/2, particleSettings.spread/2)
@@ -669,10 +716,8 @@ local function createParticle()
         math.sin(angle) * radius
     )
     
-    -- Цвет синхронизирован с темой
     local color = colors.accentLight
     
-    -- Основной шар
     local ball = Instance.new("Part")
     ball.Size = Vector3.new(particleSettings.size, particleSettings.size, particleSettings.size)
     ball.Position = spawnPos
@@ -684,7 +729,6 @@ local function createParticle()
     ball.Shape = Enum.PartType.Ball
     ball.Parent = Workspace
     
-    -- Свечение
     local glow = Instance.new("Part")
     glow.Size = Vector3.new(particleSettings.size * 2, particleSettings.size * 2, particleSettings.size * 2)
     glow.Position = spawnPos
@@ -696,14 +740,12 @@ local function createParticle()
     glow.Shape = Enum.PartType.Ball
     glow.Parent = Workspace
     
-    -- Свет
     local light = Instance.new("PointLight")
     light.Parent = ball
     light.Color = color
     light.Range = particleSettings.size * 15
     light.Brightness = 2
     
-    -- Движение: плавное покачивание на месте
     local startPos = spawnPos
     local time = 0
     local connection
@@ -716,7 +758,6 @@ local function createParticle()
         
         time = time + dt
         
-        -- Медленное плавающее движение
         local offsetX = math.sin(time * 2) * 2
         local offsetY = math.sin(time * 1.5) * 1.5
         local offsetZ = math.cos(time * 2) * 2
@@ -726,36 +767,41 @@ local function createParticle()
         light.Parent = ball
     end)
     
-    -- Удаление через время
+    local particle = {
+        ball = ball,
+        glow = glow,
+        light = light,
+        connection = connection
+    }
+    table.insert(particles, particle)
+    
     Debris:AddItem(ball, particleSettings.lifetime)
     Debris:AddItem(glow, particleSettings.lifetime)
     Debris:AddItem(light, particleSettings.lifetime)
-    
-    table.insert(particles, {ball = ball, glow = glow, light = light, connection = connection})
 end
 
 local function updateParticles()
-    -- Очищаем старые частицы
     for _, particle in ipairs(particles) do
         pcall(function()
             if particle.connection then particle.connection:Disconnect() end
-            if particle.ball then particle.ball:Destroy() end
-            if particle.glow then particle.glow:Destroy() end
-            if particle.light then particle.light:Destroy() end
+            if particle.ball and particle.ball.Parent then particle.ball:Destroy() end
+            if particle.glow and particle.glow.Parent then particle.glow:Destroy() end
+            if particle.light and particle.light.Parent then particle.light:Destroy() end
         end)
     end
     particles = {}
     
-    if particleConnection then particleConnection:Disconnect() particleConnection = nil end
+    if particleConnection then 
+        particleConnection:Disconnect() 
+        particleConnection = nil 
+    end
     
     if particlesEnabled then
-        -- Создаем начальные частицы
         for i = 1, particleSettings.count do
             createParticle()
             wait(0.05)
         end
         
-        -- Периодически создаем новые
         particleConnection = RunService.Heartbeat:Connect(function()
             if math.random() < 0.1 then
                 createParticle()
@@ -764,10 +810,9 @@ local function updateParticles()
     end
 end
 
--- ESP (С ВЫБОРОМ ЧТО ПОДСВЕЧИВАТЬ)
+-- ESP
 local espObjects = {}
 local function updateESP()
-    -- Очищаем старые объекты ESP
     for _, obj in ipairs(espObjects) do
         pcall(function() obj:Destroy() end)
     end
@@ -775,7 +820,6 @@ local function updateESP()
     
     if not espEnabled then return end
     
-    -- Подсветка игроков
     if espMode == "Все" or espMode == "Игроки" or espMode == "Друзья" then
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= player and p.Character then
@@ -806,7 +850,6 @@ local function updateESP()
         end
     end
     
-    -- Подсветка предметов
     if espMode == "Все" or espMode == "Предметы" then
         for _, v in ipairs(Workspace:GetDescendants()) do
             if v:IsA("Tool") or (v:IsA("Part") and v:FindFirstChild("ClickDetector")) then
@@ -822,7 +865,6 @@ local function updateESP()
     end
 end
 
--- Обновление ESP при добавлении игроков
 Players.PlayerAdded:Connect(function(p)
     p.CharacterAdded:Connect(function()
         if espEnabled then
@@ -832,7 +874,6 @@ Players.PlayerAdded:Connect(function(p)
     end)
 end)
 
--- Автообновление ESP
 spawn(function()
     while true do
         wait(3)
@@ -1094,7 +1135,6 @@ function updateFunctions()
     elseif currentModule == "ESP" then
         createToggle("ESP", function() return espEnabled end, function(v) espEnabled = v updateESP() end)
         
-        -- Выбор режима ESP
         local modeNote = Instance.new("TextLabel")
         modeNote.Size = UDim2.new(1, 0, 0, 30 * guiSize)
         modeNote.BackgroundTransparency = 1
@@ -1128,14 +1168,26 @@ function updateFunctions()
         end
         
     elseif currentModule == "MISC" then
-        createToggle("Particles", function() return particlesEnabled end, function(v) particlesEnabled = v updateParticles() end)
+        createToggle("Particles", function() return particlesEnabled end, function(v) 
+            particlesEnabled = v 
+            updateParticles()
+        end)
         createSlider("Кол-во частиц", 5, 100, function() return particleSettings.count end, function(v) particleSettings.count = math.floor(v) if particlesEnabled then updateParticles() end end, "")
         createSlider("Размер частиц", 0.2, 2, function() return particleSettings.size end, function(v) particleSettings.size = v if particlesEnabled then updateParticles() end end, "")
         createSlider("Скорость", 1, 5, function() return particleSettings.speed end, function(v) particleSettings.speed = v if particlesEnabled then updateParticles() end end, "")
         createSlider("Радиус спавна", 20, 200, function() return particleSettings.spread end, function(v) particleSettings.spread = v if particlesEnabled then updateParticles() end end, "")
         createSlider("Время жизни", 2, 10, function() return particleSettings.lifetime end, function(v) particleSettings.lifetime = v if particlesEnabled then updateParticles() end end, "s")
+        
         createToggle("Auto Attack", function() return autoAttackEnabled end, function(v) autoAttackEnabled = v end)
         createSlider("Attack Range", 5, 50, function() return autoAttackRange end, function(v) autoAttackRange = v end, "")
+        
+        createToggle("Always Sprint", function() return alwaysSprintEnabled end, function(v) 
+            alwaysSprintEnabled = v 
+        end)
+        
+        createToggle("NoSlow", function() return noSlowEnabled end, function(v) 
+            noSlowEnabled = v
+        end)
         
         local unhookBtn = Instance.new("TextButton")
         unhookBtn.Size = UDim2.new(1, 0, 0, 45 * guiSize)
@@ -1174,7 +1226,7 @@ function updateFunctions()
     elseif currentModule == "FRIENDS" then
         -- Поиск игроков
         local searchInput = Instance.new("TextBox")
-        searchInput.Size = UDim2.new(1, 0, 0, 40 * guiSize)
+        searchInput.Size = UDim2.new(1, -10, 0, 40 * guiSize)
         searchInput.BackgroundColor3 = colors.panelLight
         searchInput.PlaceholderText = "🔍 Поиск игрока..."
         searchInput.PlaceholderColor3 = colors.textDim
@@ -1189,7 +1241,7 @@ function updateFunctions()
         
         -- Результаты поиска
         local searchResults = Instance.new("ScrollingFrame")
-        searchResults.Size = UDim2.new(1, 0, 0, 150 * guiSize)
+        searchResults.Size = UDim2.new(1, -10, 0, 150 * guiSize)
         searchResults.BackgroundColor3 = colors.panelLight
         searchResults.BorderSizePixel = 0
         searchResults.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -1202,7 +1254,6 @@ function updateFunctions()
         resultsLayout.Parent = searchResults
         resultsLayout.Padding = UDim.new(0, 2 * guiSize)
         
-        -- Обновление результатов поиска
         searchInput:GetPropertyChangedSignal("Text"):Connect(function()
             local query = searchInput.Text:lower()
             if query == "" then
@@ -1269,9 +1320,9 @@ function updateFunctions()
         
         -- Кнопка обновления списка друзей
         local refreshFriendsBtn = Instance.new("TextButton")
-        refreshFriendsBtn.Size = UDim2.new(1, 0, 0, 35 * guiSize)
+        refreshFriendsBtn.Size = UDim2.new(1, -10, 0, 35 * guiSize)
         refreshFriendsBtn.BackgroundColor3 = colors.accent
-        refreshFriendsBtn.Text = "🔄 ОБНОВИТЬ СПИСОК ДРУЗЕЙ"
+        refreshFriendsBtn.Text = "🔄 ПЕРЕЗАПИСАТЬ ДРУЗЕЙ"
         refreshFriendsBtn.TextColor3 = Color3.new(1,1,1)
         refreshFriendsBtn.TextSize = 14 * guiSize
         refreshFriendsBtn.Font = Enum.Font.GothamBold
@@ -1282,13 +1333,30 @@ function updateFunctions()
         refreshCorner.Parent = refreshFriendsBtn
         
         refreshFriendsBtn.MouseButton1Click:Connect(function()
-            updateFunctions()
+            local newFriends = {}
+            local currentPlayers = {}
+            
+            for _, p in ipairs(Players:GetPlayers()) do
+                currentPlayers[p.UserId] = p
+            end
+            
+            for userId, name in pairs(friends) do
+                if currentPlayers[userId] then
+                    newFriends[userId] = name
+                else
+                    print("❌ Друг " .. name .. " покинул сервер")
+                end
+            end
+            
+            friends = newFriends
+            saveConfig()
             if espEnabled then updateESP() end
+            updateFunctions()
         end)
         
         -- Список друзей
         local friendNote = Instance.new("TextLabel")
-        friendNote.Size = UDim2.new(1, 0, 0, 30 * guiSize)
+        friendNote.Size = UDim2.new(1, -10, 0, 30 * guiSize)
         friendNote.BackgroundTransparency = 1
         friendNote.Text = "👥 МОИ ДРУЗЬЯ"
         friendNote.TextColor3 = colors.accentLight
@@ -1297,7 +1365,7 @@ function updateFunctions()
         friendNote.Parent = functionsScrolling
         
         local friendList = Instance.new("ScrollingFrame")
-        friendList.Size = UDim2.new(1, 0, 0, 150 * guiSize)
+        friendList.Size = UDim2.new(1, -10, 0, 150 * guiSize)
         friendList.BackgroundColor3 = colors.panelLight
         friendList.BorderSizePixel = 0
         friendList.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -1353,139 +1421,31 @@ function updateFunctions()
     elseif currentModule == "TELEPORT" then
         -- Заголовок
         local tpNote = Instance.new("TextLabel")
-        tpNote.Size = UDim2.new(1, 0, 0, 30 * guiSize)
+        tpNote.Size = UDim2.new(1, -10, 0, 30 * guiSize)
         tpNote.BackgroundTransparency = 1
         tpNote.Text = "📍 СОХРАНЕННЫЕ ТОЧКИ"
         tpNote.TextColor3 = colors.accentLight
         tpNote.TextSize = 16 * guiSize
         tpNote.Font = Enum.Font.GothamBold
         tpNote.Parent = functionsScrolling
-        
-        -- Контейнер для точек
-        local pointsContainer = Instance.new("Frame")
-        pointsContainer.Size = UDim2.new(1, 0, 0, 200 * guiSize)
-        pointsContainer.BackgroundColor3 = colors.panelLight
-        pointsContainer.BorderSizePixel = 0
-        pointsContainer.ClipsDescendants = true
-        pointsContainer.Parent = functionsScrolling
-        
-        local pointsCorner = Instance.new("UICorner")
-        pointsCorner.CornerRadius = UDim.new(0, 8 * guiSize)
-        pointsCorner.Parent = pointsContainer
-        
-        local pointsList = Instance.new("ScrollingFrame")
-        pointsList.Size = UDim2.new(1, -10 * guiSize, 1, -10 * guiSize)
-        pointsList.Position = UDim2.new(0, 5 * guiSize, 0, 5 * guiSize)
-        pointsList.BackgroundTransparency = 1
-        pointsList.BorderSizePixel = 0
-        pointsList.CanvasSize = UDim2.new(0, 0, 0, 0)
-        pointsList.ScrollBarThickness = 4 * guiSize
-        pointsList.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        pointsList.Parent = pointsContainer
-        
-        local pointsLayout = Instance.new("UIListLayout")
-        pointsLayout.Parent = pointsList
-        pointsLayout.Padding = UDim.new(0, 5 * guiSize)
-        
-        -- Функция обновления списка точек
-        local function refreshPointsList()
-            for _, child in ipairs(pointsList:GetChildren()) do
-                if not child:IsA("UIListLayout") then
-                    child:Destroy()
-                end
-            end
-            
-            if #teleportPoints == 0 then
-                local emptyLabel = Instance.new("TextLabel")
-                emptyLabel.Size = UDim2.new(1, 0, 0, 40 * guiSize)
-                emptyLabel.BackgroundTransparency = 1
-                emptyLabel.Text = "Нет сохраненных точек"
-                emptyLabel.TextColor3 = colors.textDim
-                emptyLabel.TextSize = 14 * guiSize
-                emptyLabel.Parent = pointsList
-                return
-            end
-            
-            for i, point in ipairs(teleportPoints) do
-                local pointFrame = Instance.new("Frame")
-                pointFrame.Size = UDim2.new(1, 0, 0, 60 * guiSize)
-                pointFrame.BackgroundColor3 = colors.panel
-                pointFrame.Parent = pointsList
-                
-                local pointCorner = Instance.new("UICorner")
-                pointCorner.CornerRadius = UDim.new(0, 6 * guiSize)
-                pointCorner.Parent = pointFrame
-                
-                local nameLabel = Instance.new("TextLabel")
-                nameLabel.Size = UDim2.new(1, -100 * guiSize, 0, 20 * guiSize)
-                nameLabel.Position = UDim2.new(0, 10 * guiSize, 0, 5 * guiSize)
-                nameLabel.BackgroundTransparency = 1
-                nameLabel.Text = point.name
-                nameLabel.TextColor3 = colors.text
-                nameLabel.TextSize = 14 * guiSize
-                nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-                nameLabel.Parent = pointFrame
-                
-                local pos = point.pos
-                local coordsLabel = Instance.new("TextLabel")
-                coordsLabel.Size = UDim2.new(1, -100 * guiSize, 0, 16 * guiSize)
-                coordsLabel.Position = UDim2.new(0, 10 * guiSize, 0, 28 * guiSize)
-                coordsLabel.BackgroundTransparency = 1
-                coordsLabel.Text = string.format("X: %.0f  Y: %.0f  Z: %.0f", pos.X, pos.Y, pos.Z)
-                coordsLabel.TextColor3 = colors.textDim
-                coordsLabel.TextSize = 11 * guiSize
-                coordsLabel.TextXAlignment = Enum.TextXAlignment.Left
-                coordsLabel.Parent = pointFrame
-                
-                -- Кнопка телепорта
-                local tpBtn = Instance.new("TextButton")
-                tpBtn.Size = UDim2.new(0, 40 * guiSize, 0, 25 * guiSize)
-                tpBtn.Position = UDim2.new(1, -90 * guiSize, 0, 17 * guiSize)
-                tpBtn.BackgroundColor3 = colors.accent
-                tpBtn.Text = "TP"
-                tpBtn.TextColor3 = Color3.new(1,1,1)
-                tpBtn.TextSize = 12 * guiSize
-                tpBtn.Font = Enum.Font.GothamBold
-                tpBtn.Parent = pointFrame
-                
-                local tpCorner = Instance.new("UICorner")
-                tpCorner.CornerRadius = UDim.new(0, 4 * guiSize)
-                tpCorner.Parent = tpBtn
-                
-                tpBtn.MouseButton1Click:Connect(function()
-                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        player.Character.HumanoidRootPart.CFrame = CFrame.new(pos.X, pos.Y, pos.Z)
-                    end
-                end)
-                
-                -- Кнопка удаления
-                local delBtn = Instance.new("TextButton")
-                delBtn.Size = UDim2.new(0, 40 * guiSize, 0, 25 * guiSize)
-                delBtn.Position = UDim2.new(1, -45 * guiSize, 0, 17 * guiSize)
-                delBtn.BackgroundColor3 = colors.danger
-                delBtn.Text = "✕"
-                delBtn.TextColor3 = Color3.new(1,1,1)
-                delBtn.TextSize = 14 * guiSize
-                delBtn.Font = Enum.Font.GothamBold
-                delBtn.Parent = pointFrame
-                
-                local delCorner = Instance.new("UICorner")
-                delCorner.CornerRadius = UDim.new(0, 4 * guiSize)
-                delCorner.Parent = delBtn
-                
-                delBtn.MouseButton1Click:Connect(function()
-                    table.remove(teleportPoints, i)
-                    saveConfig()
-                    refreshPointsList()
-                end)
-            end
-        end
-        
-        refreshPointsList()
-        
-        -- Поле для названия
+
+        -- Текущие координаты
+        local posLabel = Instance.new("TextLabel")
+        posLabel.Size = UDim2.new(1, -10, 0, 30 * guiSize)
+        posLabel.BackgroundColor3 = colors.panelLight
+        posLabel.Text = "X: 0 | Y: 0 | Z: 0"
+        posLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+        posLabel.Font = Enum.Font.Gotham
+        posLabel.TextSize = 14 * guiSize
+        posLabel.Parent = functionsScrolling
+
+        local posCorner = Instance.new("UICorner")
+        posCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+        posCorner.Parent = posLabel
+
+        -- Поле для названия новой точки
         local pointNameInput = Instance.new("TextBox")
-        pointNameInput.Size = UDim2.new(1, 0, 0, 40 * guiSize)
+        pointNameInput.Size = UDim2.new(1, -10, 0, 40 * guiSize)
         pointNameInput.BackgroundColor3 = colors.panelLight
         pointNameInput.PlaceholderText = "Название точки"
         pointNameInput.PlaceholderColor3 = colors.textDim
@@ -1493,169 +1453,203 @@ function updateFunctions()
         pointNameInput.TextColor3 = colors.text
         pointNameInput.ClearTextOnFocus = false
         pointNameInput.Parent = functionsScrolling
-        
+
         local nameCorner = Instance.new("UICorner")
         nameCorner.CornerRadius = UDim.new(0, 8 * guiSize)
         nameCorner.Parent = pointNameInput
-        
+
         -- Кнопка сохранения
-        local saveBtn = Instance.new("TextButton")
-        saveBtn.Size = UDim2.new(1, 0, 0, 45 * guiSize)
-        saveBtn.BackgroundColor3 = colors.success
-        saveBtn.Text = "💾 СОХРАНИТЬ ТЕКУЩУЮ ПОЗИЦИЮ"
-        saveBtn.TextColor3 = Color3.new(1,1,1)
-        saveBtn.TextSize = 14 * guiSize
-        saveBtn.Font = Enum.Font.GothamBold
-        saveBtn.Parent = functionsScrolling
-        
+        local savePointBtn = Instance.new("TextButton")
+        savePointBtn.Size = UDim2.new(0.45, -5, 0, 40 * guiSize)
+        savePointBtn.Position = UDim2.new(0, 0, 0, 0)
+        savePointBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        savePointBtn.Text = "📌 СОХРАНИТЬ"
+        savePointBtn.TextColor3 = Color3.new(1, 1, 1)
+        savePointBtn.Font = Enum.Font.GothamBold
+        savePointBtn.TextSize = 12 * guiSize
+        savePointBtn.Parent = functionsScrolling
+
         local saveCorner = Instance.new("UICorner")
         saveCorner.CornerRadius = UDim.new(0, 8 * guiSize)
-        saveCorner.Parent = saveBtn
-        
-        saveBtn.MouseButton1Click:Connect(function()
-            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        saveCorner.Parent = savePointBtn
+
+        -- Кнопка обновления списка
+        local refreshPointsBtn = Instance.new("TextButton")
+        refreshPointsBtn.Size = UDim2.new(0.45, -5, 0, 40 * guiSize)
+        refreshPointsBtn.Position = UDim2.new(0.55, 0, 0, 0)
+        refreshPointsBtn.BackgroundColor3 = colors.accent
+        refreshPointsBtn.Text = "🔄 ОБНОВИТЬ"
+        refreshPointsBtn.TextColor3 = Color3.new(1, 1, 1)
+        refreshPointsBtn.Font = Enum.Font.GothamBold
+        refreshPointsBtn.TextSize = 12 * guiSize
+        refreshPointsBtn.Parent = functionsScrolling
+
+        local refreshCorner = Instance.new("UICorner")
+        refreshCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+        refreshCorner.Parent = refreshPointsBtn
+
+        -- Список сохраненных точек
+        local pointsList = Instance.new("ScrollingFrame")
+        pointsList.Size = UDim2.new(1, -10, 0, 200 * guiSize)
+        pointsList.BackgroundColor3 = colors.panelLight
+        pointsList.BorderSizePixel = 0
+        pointsList.CanvasSize = UDim2.new(0, 0, 0, 0)
+        pointsList.ScrollBarThickness = 4 * guiSize
+        pointsList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        pointsList.Parent = functionsScrolling
+
+        local listCorner = Instance.new("UICorner")
+        listCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+        listCorner.Parent = pointsList
+
+        local listLayout = Instance.new("UIListLayout")
+        listLayout.Parent = pointsList
+        listLayout.Padding = UDim.new(0, 5 * guiSize)
+        listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+        local selectedPoint = nil
+
+        local function updatePointsList()
+            for _, child in pairs(pointsList:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child:Destroy()
+                end
+            end
+
+            if #teleportPoints == 0 then
+                local emptyLabel = Instance.new("TextLabel")
+                emptyLabel.Size = UDim2.new(1, -10, 0, 40 * guiSize)
+                emptyLabel.BackgroundTransparency = 1
+                emptyLabel.Text = "Нет сохраненных точек"
+                emptyLabel.TextColor3 = colors.textDim
+                emptyLabel.TextSize = 14 * guiSize
+                emptyLabel.Parent = pointsList
+                return
+            end
+
+            for i, point in ipairs(teleportPoints) do
+                local pointBtn = Instance.new("TextButton")
+                pointBtn.Size = UDim2.new(1, -10, 0, 45 * guiSize)
+                pointBtn.BackgroundColor3 = (selectedPoint == point) and colors.accent or colors.panel
+                pointBtn.Text = ""
+                pointBtn.AutoButtonColor = false
+                pointBtn.Parent = pointsList
+
+                local btnCorner = Instance.new("UICorner")
+                btnCorner.CornerRadius = UDim.new(0, 6 * guiSize)
+                btnCorner.Parent = pointBtn
+
+                local nameLabel = Instance.new("TextLabel")
+                nameLabel.Size = UDim2.new(1, -100, 0, 20 * guiSize)
+                nameLabel.Position = UDim2.new(0, 10, 0, 5)
+                nameLabel.BackgroundTransparency = 1
+                nameLabel.Text = point.name
+                nameLabel.TextColor3 = colors.text
+                nameLabel.TextSize = 14 * guiSize
+                nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+                nameLabel.Parent = pointBtn
+
+                local coordsLabel = Instance.new("TextLabel")
+                coordsLabel.Size = UDim2.new(1, -100, 0, 16 * guiSize)
+                coordsLabel.Position = UDim2.new(0, 10, 0, 25)
+                coordsLabel.BackgroundTransparency = 1
+                coordsLabel.Text = string.format("X:%.0f Y:%.0f Z:%.0f", point.x, point.y, point.z)
+                coordsLabel.TextColor3 = colors.textDim
+                coordsLabel.TextSize = 11 * guiSize
+                coordsLabel.TextXAlignment = Enum.TextXAlignment.Left
+                coordsLabel.Parent = pointBtn
+
+                local tpBtn = Instance.new("TextButton")
+                tpBtn.Size = UDim2.new(0, 45, 0, 30)
+                tpBtn.Position = UDim2.new(1, -95, 0.5, -15)
+                tpBtn.BackgroundColor3 = colors.accent
+                tpBtn.Text = "TP"
+                tpBtn.TextColor3 = Color3.new(1, 1, 1)
+                tpBtn.TextSize = 12 * guiSize
+                tpBtn.Font = Enum.Font.GothamBold
+                tpBtn.Parent = pointBtn
+
+                local tpCorner = Instance.new("UICorner")
+                tpCorner.CornerRadius = UDim.new(0, 4 * guiSize)
+                tpCorner.Parent = tpBtn
+
+                tpBtn.MouseButton1Click:Connect(function()
+                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        player.Character.HumanoidRootPart.CFrame = CFrame.new(point.x, point.y, point.z)
+                    end
+                end)
+
+                local delBtn = Instance.new("TextButton")
+                delBtn.Size = UDim2.new(0, 45, 0, 30)
+                delBtn.Position = UDim2.new(1, -50, 0.5, -15)
+                delBtn.BackgroundColor3 = colors.danger
+                delBtn.Text = "✕"
+                delBtn.TextColor3 = Color3.new(1, 1, 1)
+                delBtn.TextSize = 14 * guiSize
+                delBtn.Font = Enum.Font.GothamBold
+                delBtn.Parent = pointBtn
+
+                local delCorner = Instance.new("UICorner")
+                delCorner.CornerRadius = UDim.new(0, 4 * guiSize)
+                delCorner.Parent = delBtn
+
+                delBtn.MouseButton1Click:Connect(function()
+                    table.remove(teleportPoints, i)
+                    saveConfig()
+                    if selectedPoint == point then selectedPoint = nil end
+                    updatePointsList()
+                end)
+
+                pointBtn.MouseButton1Click:Connect(function()
+                    selectedPoint = point
+                    updatePointsList()
+                end)
+            end
+        end
+
+        local function updatePosition()
+            local character = player.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local pos = character.HumanoidRootPart.Position
+                posLabel.Text = string.format("📍 X: %.1f | Y: %.1f | Z: %.1f", pos.X, pos.Y, pos.Z)
+            end
+        end
+
+        RunService.RenderStepped:Connect(updatePosition)
+
+        savePointBtn.MouseButton1Click:Connect(function()
+            local character = player.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local pos = character.HumanoidRootPart.Position
                 local name = pointNameInput.Text
                 if name == "" then
                     name = "Точка #" .. (#teleportPoints + 1)
                 end
-                local pos = player.Character.HumanoidRootPart.Position
+
                 table.insert(teleportPoints, {
                     name = name,
-                    pos = Vector3.new(pos.X, pos.Y, pos.Z)
+                    x = pos.X,
+                    y = pos.Y,
+                    z = pos.Z
                 })
+
                 saveConfig()
-                refreshPointsList()
+                updatePointsList()
                 pointNameInput.Text = ""
             end
         end)
-        
-        -- ТЕЛЕПОРТ К ИГРОКУ
-        local tpPlayerNote = Instance.new("TextLabel")
-        tpPlayerNote.Size = UDim2.new(1, 0, 0, 30 * guiSize)
-        tpPlayerNote.BackgroundTransparency = 1
-        tpPlayerNote.Text = "👤 ТЕЛЕПОРТ К ИГРОКУ"
-        tpPlayerNote.TextColor3 = colors.accentLight
-        tpPlayerNote.TextSize = 16 * guiSize
-        tpPlayerNote.Font = Enum.Font.GothamBold
-        tpPlayerNote.Parent = functionsScrolling
-        
-        local tpPlayerInput = Instance.new("TextBox")
-        tpPlayerInput.Size = UDim2.new(1, 0, 0, 40 * guiSize)
-        tpPlayerInput.BackgroundColor3 = colors.panelLight
-        tpPlayerInput.PlaceholderText = "Ник игрока"
-        tpPlayerInput.PlaceholderColor3 = colors.textDim
-        tpPlayerInput.Text = ""
-        tpPlayerInput.TextColor3 = colors.text
-        tpPlayerInput.ClearTextOnFocus = false
-        tpPlayerInput.Parent = functionsScrolling
-        
-        local tpPlayerCorner = Instance.new("UICorner")
-        tpPlayerCorner.CornerRadius = UDim.new(0, 8 * guiSize)
-        tpPlayerCorner.Parent = tpPlayerInput
-        
-        local tpPlayerBtn = Instance.new("TextButton")
-        tpPlayerBtn.Size = UDim2.new(1, 0, 0, 40 * guiSize)
-        tpPlayerBtn.BackgroundColor3 = colors.accent
-        tpPlayerBtn.Text = "🔮 ТЕЛЕПОРТИРОВАТЬСЯ"
-        tpPlayerBtn.TextColor3 = Color3.new(1,1,1)
-        tpPlayerBtn.TextSize = 14 * guiSize
-        tpPlayerBtn.Font = Enum.Font.GothamBold
-        tpPlayerBtn.Parent = functionsScrolling
-        
-        local tpPlayerBtnCorner = Instance.new("UICorner")
-        tpPlayerBtnCorner.CornerRadius = UDim.new(0, 8 * guiSize)
-        tpPlayerBtnCorner.Parent = tpPlayerBtn
-        
-        tpPlayerBtn.MouseButton1Click:Connect(function()
-            local targetName = tpPlayerInput.Text
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p.Name:lower():find(targetName:lower()) or p.DisplayName:lower():find(targetName:lower()) then
-                    if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        player.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
-                    end
-                    tpPlayerInput.Text = ""
-                    break
-                end
-            end
+
+        refreshPointsBtn.MouseButton1Click:Connect(function()
+            updatePointsList()
         end)
-        
-        -- Настройка бинда для ТП к игроку
-        local bindNote = Instance.new("TextLabel")
-        bindNote.Size = UDim2.new(1, 0, 0, 25 * guiSize)
-        bindNote.BackgroundTransparency = 1
-        bindNote.Text = "Горячая клавиша для ТП:"
-        bindNote.TextColor3 = colors.textDim
-        bindNote.TextSize = 12 * guiSize
-        bindNote.TextXAlignment = Enum.TextXAlignment.Left
-        bindNote.Parent = functionsScrolling
-        
-        local bindInput = Instance.new("TextBox")
-        bindInput.Size = UDim2.new(1, 0, 0, 35 * guiSize)
-        bindInput.BackgroundColor3 = colors.panelLight
-        bindInput.PlaceholderText = "Введите клавишу (например: G)"
-        bindInput.PlaceholderColor3 = colors.textDim
-        bindInput.Text = ""
-        bindInput.TextColor3 = colors.text
-        bindInput.ClearTextOnFocus = false
-        bindInput.Parent = functionsScrolling
-        
-        local bindCorner = Instance.new("UICorner")
-        bindCorner.CornerRadius = UDim.new(0, 8 * guiSize)
-        bindCorner.Parent = bindInput
-        
-        local bindBtn = Instance.new("TextButton")
-        bindBtn.Size = UDim2.new(1, 0, 0, 35 * guiSize)
-        bindBtn.BackgroundColor3 = colors.accent
-        bindBtn.Text = "УСТАНОВИТЬ БИНД"
-        bindBtn.TextColor3 = Color3.new(1,1,1)
-        bindBtn.TextSize = 12 * guiSize
-        bindBtn.Font = Enum.Font.GothamBold
-        bindBtn.Parent = functionsScrolling
-        
-        local bindBtnCorner = Instance.new("UICorner")
-        bindBtnCorner.CornerRadius = UDim.new(0, 8 * guiSize)
-        bindBtnCorner.Parent = bindBtn
-        
-        local tpBindKey = nil
-        
-        bindBtn.MouseButton1Click:Connect(function()
-            local keyText = bindInput.Text:upper()
-            if #keyText == 1 then
-                tpBindKey = Enum.KeyCode[keyText]
-                bindInput.Text = "Бинд установлен: " .. keyText
-                wait(1)
-                bindInput.Text = ""
-            end
-        end)
-        
-        UIS.InputBegan:Connect(function(input, gp)
-            if gp then return end
-            if tpBindKey and input.KeyCode == tpBindKey and player.Character then
-                -- ТП к ближайшему игроку
-                local closest = nil
-                local shortest = math.huge
-                for _, p in ipairs(Players:GetPlayers()) do
-                    if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                        local dist = (player.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
-                        if dist < shortest then
-                            shortest = dist
-                            closest = p
-                        end
-                    end
-                end
-                if closest then
-                    player.Character.HumanoidRootPart.CFrame = closest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
-                end
-            end
-        end)
+
+        updatePointsList()
         
     elseif currentModule == "THEME" then
         createSlider("Затемнение фона", 0, 1, function() return bgTransparency end, function(v) bgTransparency = v bgDim.BackgroundTransparency = v end, "")
         
-        -- Слайдер размера GUI
         createSlider("Размер GUI", minSize, maxSize, function() return guiSize end, function(v) updateGuiSize(v) saveConfig() end, "x")
         
-        -- Готовые темы
         local themeNote = Instance.new("TextLabel")
         themeNote.Size = UDim2.new(1, 0, 0, 30 * guiSize)
         themeNote.BackgroundTransparency = 1
@@ -1680,19 +1674,16 @@ function updateFunctions()
             themeCorner.Parent = themeBtn
             
             themeBtn.MouseButton1Click:Connect(function()
-                -- Применяем тему
                 for k, v in pairs(themeColors) do
                     colors[k] = v
                 end
                 
-                -- Обновляем интерфейс
                 modulesPanel.BackgroundColor3 = colors.panel
                 functionsPanel.BackgroundColor3 = colors.panel
                 bgDim.BackgroundColor3 = colors.background
                 modulesTitle.TextColor3 = colors.accentLight
                 functionsTitle.TextColor3 = colors.accentLight
                 
-                -- Обновляем все кнопки модулей
                 for _, child in ipairs(modulesScrolling:GetChildren()) do
                     if child:IsA("TextButton") then
                         if child.TextLabel.Text == currentModule then
@@ -1711,7 +1702,6 @@ function updateFunctions()
             end)
         end
         
-        -- Кнопка сброса на дефолт
         local resetBtn = Instance.new("TextButton")
         resetBtn.Size = UDim2.new(1, 0, 0, 40 * guiSize)
         resetBtn.BackgroundColor3 = colors.accent
@@ -1726,7 +1716,6 @@ function updateFunctions()
         resetCorner.Parent = resetBtn
         
         resetBtn.MouseButton1Click:Connect(function()
-            -- Сбрасываем на дефолтные цвета
             for k, v in pairs(defaultColors) do
                 colors[k] = v
             end
@@ -1737,7 +1726,6 @@ function updateFunctions()
             modulesTitle.TextColor3 = colors.accentLight
             functionsTitle.TextColor3 = colors.accentLight
             
-            -- Обновляем кнопки модулей
             for _, child in ipairs(modulesScrolling:GetChildren()) do
                 if child:IsA("TextButton") then
                     if child.TextLabel.Text == currentModule then
@@ -1795,10 +1783,8 @@ UIS.InputBegan:Connect(function(input, gp)
 end)
 
 print("✅ Nez0x UI - ФИНАЛЬНАЯ ВЕРСИЯ")
-print("📌 TELEPORT - есть кнопки СОЗДАНИЯ/ТП/УДАЛЕНИЯ")
-print("📌 FRIENDS - кнопка обновления списка")
-print("📌 PARTICLES - парят на месте, синхрон с темой")
-print("📌 ESP - выбор: Все/Игроки/Друзья/Предметы")
-print("📌 JUMP POWER - ИСПРАВЛЕН")
-print("📌 9 готовых тем")
-print("📌 ТП к игроку с биндом")
+print("📌 DYNAMIC ISLAND - время в центре")
+print("📌 ALWAYS SPRINT - РАБОТАЕТ!")
+print("📌 NOSLOW - работает")
+print("📌 TELEPORT - есть кнопки")
+print("📌 Увеличен отступ между модулями")
