@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 local Stats = game:GetService("Stats")
+local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 
@@ -166,6 +167,7 @@ local defaultColors = {
     danger = Color3.fromRGB(160, 50, 50),
     friend = Color3.fromRGB(80, 200, 80),
     item = Color3.fromRGB(255, 200, 50),
+    admin = Color3.fromRGB(200, 50, 200),
 }
 
 -- ===== ГОТОВЫЕ ТЕМЫ =====
@@ -427,7 +429,7 @@ functionsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 -- ===== ПЕРЕМЕННЫЕ =====
 local currentModule = "COMBAT"
-local modules = {"COMBAT", "MOVEMENT", "VISUALS", "PLAYER", "ESP", "MISC", "FRIENDS", "TELEPORT", "THEME"}
+local modules = {"COMBAT", "MOVEMENT", "VISUALS", "PLAYER", "ESP", "MISC", "FRIENDS", "TELEPORT", "THEME", "ADMIN"}
 
 -- Состояния функций
 local aimbotEnabled = false
@@ -448,11 +450,16 @@ local autoAttackEnabled = false
 local particlesEnabled = false
 local alwaysSprintEnabled = false
 local noSlowEnabled = false
+local adminUnlocked = false
+local invisibleEnabled = false
+local testEnabled = false
+local turboFlyEnabled = false
 
 -- Настройки
 local aimbotSpeed = 0.5
 local aimbotRandom = 0.1
 local flySpeed = 50
+local turboFlySpeed = 200
 local speedPower = 50
 local jumpPower = 100
 local autoAttackRange = 20
@@ -476,6 +483,118 @@ local particleSettings = {
     lifetime = 5,
 }
 
+-- Функция для бесконечного зума
+local zoomEnabled = false
+local minZoom = 0.5
+local maxZoom = math.huge
+
+-- Обработка зума
+UIS.InputChanged:Connect(function(input, gp)
+    if gp then return end
+    if not zoomEnabled then return end
+    
+    if input.UserInputType == Enum.UserInputType.MouseWheel then
+        local camera = Workspace.CurrentCamera
+        if camera then
+            local delta = -input.Position.Z * 0.1
+            local newFOV = camera.FieldOfView + delta
+            camera.FieldOfView = math.clamp(newFOV, 1, 1000)
+        end
+    end
+end)
+
+-- Функция для трах-трах (test) - ИСПРАВЛЕНО
+local testConnection = nil
+
+local function doTestLoop()
+    if testConnection then testConnection:Disconnect() end
+    
+    testConnection = RunService.Heartbeat:Connect(function()
+        if not testEnabled or not player.Character then return end
+        
+        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        
+        -- Находим ближайшего игрока
+        local closest = nil
+        local shortest = math.huge
+        
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local dist = (hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
+                if dist < shortest then
+                    shortest = dist
+                    closest = p
+                end
+            end
+        end
+        
+        if closest then
+            local targetPos = closest.Character.HumanoidRootPart.Position
+            local lookVector = closest.Character.HumanoidRootPart.CFrame.LookVector
+            
+            -- Чередуем позиции: сзади на расстоянии и сзади вплотную
+            local time = tick() % 0.6
+            if time < 0.3 then
+                -- Сзади на расстоянии 3 студии
+                hrp.CFrame = CFrame.new(targetPos - lookVector * 3, targetPos)
+            else
+                -- Сзади вплотную
+                hrp.CFrame = CFrame.new(targetPos - lookVector * 1, targetPos)
+            end
+        end
+    end)
+end
+
+-- Функция невидимости
+local function updateInvisibility()
+    if not player.Character then return end
+    
+    if invisibleEnabled then
+        for _, part in ipairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Transparency = 1
+            end
+        end
+    else
+        for _, part in ipairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Transparency = 0
+            end
+        end
+    end
+end
+
+-- Функция турбо флая (объединенная с обычным)
+local flyConnection = nil
+local function updateFly()
+    if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+    
+    if (flyEnabled or turboFlyEnabled) and player.Character then
+        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            flyConnection = RunService.Heartbeat:Connect(function()
+                if not (flyEnabled or turboFlyEnabled) or not player.Character then return end
+                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+                
+                local moveDir = Vector3.new()
+                local cam = Workspace.CurrentCamera.CFrame
+                
+                if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.LookVector end
+                if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.LookVector end
+                if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.RightVector end
+                if UIS:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.RightVector end
+                if UIS:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+                if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir = moveDir - Vector3.new(0, 1, 0) end
+                
+                local currentSpeed = turboFlyEnabled and turboFlySpeed or flySpeed
+                hrp.Velocity = moveDir * currentSpeed
+            end)
+        end
+    end
+end
+
 -- ===== ФУНКЦИИ СОХРАНЕНИЯ/ЗАГРУЗКИ =====
 local configFileName = "Nez0xConfig.json"
 
@@ -494,6 +613,7 @@ local function saveConfig()
             aimbotRandom = aimbotRandom,
             aimbotThroughWalls = aimbotThroughWalls,
             flySpeed = flySpeed,
+            turboFlySpeed = turboFlySpeed,
             speedPower = speedPower,
             jumpPower = jumpPower,
             autoAttackRange = autoAttackRange,
@@ -533,6 +653,7 @@ local function loadConfig()
                 aimbotRandom = decoded.settings.aimbotRandom or 0.1
                 aimbotThroughWalls = decoded.settings.aimbotThroughWalls or false
                 flySpeed = decoded.settings.flySpeed or 50
+                turboFlySpeed = decoded.settings.turboFlySpeed or 200
                 speedPower = decoded.settings.speedPower or 50
                 jumpPower = decoded.settings.jumpPower or 100
                 autoAttackRange = decoded.settings.autoAttackRange or 20
@@ -654,35 +775,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
-
--- FLY
-local flyConnection = nil
-local function updateFly()
-    if flyConnection then flyConnection:Disconnect() flyConnection = nil end
-    
-    if flyEnabled and player.Character then
-        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            flyConnection = RunService.Heartbeat:Connect(function()
-                if not flyEnabled or not player.Character then return end
-                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-                if not hrp then return end
-                
-                local moveDir = Vector3.new()
-                local cam = Workspace.CurrentCamera.CFrame
-                
-                if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.LookVector end
-                if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.LookVector end
-                if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.RightVector end
-                if UIS:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.RightVector end
-                if UIS:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
-                if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir = moveDir - Vector3.new(0, 1, 0) end
-                
-                hrp.Velocity = moveDir * flySpeed
-            end)
-        end
-    end
-end
 
 -- NOCLIP
 RunService.Stepped:Connect(function()
@@ -1067,6 +1159,7 @@ end)
 -- UNHOOK
 local function unhook()
     if flyConnection then flyConnection:Disconnect() end
+    if testConnection then testConnection:Disconnect() end
     if particleConnection then particleConnection:Disconnect() end
     if blurEffect then blurEffect:Destroy() end
     updateESP()
@@ -1291,6 +1384,9 @@ local function createBindButton(text, getVar, setVar, bindName)
         if text == "ESP" then
             updateESP()
         end
+        if text == "Fly" or text == "Turbo Fly" then
+            updateFly()
+        end
     end)
 
     -- Обработчик кнопки бинда
@@ -1300,6 +1396,9 @@ local function createBindButton(text, getVar, setVar, bindName)
             updateButtonState()
             if text == "ESP" then
                 updateESP()
+            end
+            if text == "Fly" or text == "Turbo Fly" then
+                updateFly()
             end
         end)
     end)
@@ -1415,6 +1514,10 @@ function updateFunctions()
         createBindButton("NoSlow", function() return noSlowEnabled end, function(v) 
             noSlowEnabled = v
         end, "NoSlow")
+        
+        createBindButton("Zoom (колёсико)", function() return zoomEnabled end, function(v) 
+            zoomEnabled = v 
+        end, "Zoom")
         
         local unhookBtn = Instance.new("TextButton")
         unhookBtn.Size = UDim2.new(1, 0, 0, 45 * guiSize)
@@ -1969,6 +2072,122 @@ function updateFunctions()
             saveConfig()
             updateFunctions()
         end)
+        
+    elseif currentModule == "ADMIN" then
+        if not adminUnlocked then
+            local adminNote = Instance.new("TextLabel")
+            adminNote.Size = UDim2.new(1, -10, 0, 30 * guiSize)
+            adminNote.BackgroundTransparency = 1
+            adminNote.Text = "🔐 АДМИН ПАНЕЛЬ (ЗАКРЫТО)"
+            adminNote.TextColor3 = colors.admin
+            adminNote.TextSize = 16 * guiSize
+            adminNote.Font = Enum.Font.GothamBold
+            adminNote.Parent = functionsScrolling
+
+            local adminInput = Instance.new("TextBox")
+            adminInput.Size = UDim2.new(1, -10, 0, 45 * guiSize)
+            adminInput.BackgroundColor3 = colors.panelLight
+            adminInput.PlaceholderText = "Введите пароль"
+            adminInput.PlaceholderColor3 = colors.textDim
+            adminInput.Text = ""
+            adminInput.TextColor3 = colors.text
+            adminInput.TextSize = 20 * guiSize
+            adminInput.Font = Enum.Font.GothamBold
+            adminInput.ClearTextOnFocus = true
+            adminInput.Parent = functionsScrolling
+
+            local adminCorner = Instance.new("UICorner")
+            adminCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+            adminCorner.Parent = adminInput
+
+            local adminBtn = Instance.new("TextButton")
+            adminBtn.Size = UDim2.new(1, -10, 0, 40 * guiSize)
+            adminBtn.BackgroundColor3 = colors.admin
+            adminBtn.Text = "ВОЙТИ"
+            adminBtn.TextColor3 = Color3.new(1,1,1)
+            adminBtn.TextSize = 14 * guiSize
+            adminBtn.Font = Enum.Font.GothamBold
+            adminBtn.Parent = functionsScrolling
+
+            local adminBtnCorner = Instance.new("UICorner")
+            adminBtnCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+            adminBtnCorner.Parent = adminBtn
+
+            local adminStatus = Instance.new("TextLabel")
+            adminStatus.Size = UDim2.new(1, -10, 0, 25 * guiSize)
+            adminStatus.BackgroundTransparency = 1
+            adminStatus.Text = "Введите пароль для доступа"
+            adminStatus.TextColor3 = colors.textDim
+            adminStatus.TextSize = 12 * guiSize
+            adminStatus.Font = Enum.Font.Gotham
+            adminStatus.Parent = functionsScrolling
+
+            adminBtn.MouseButton1Click:Connect(function()
+                if adminInput.Text == "6247" then
+                    adminUnlocked = true
+                    updateFunctions()
+                else
+                    adminStatus.Text = "❌ НЕВЕРНЫЙ ПАРОЛЬ"
+                    adminStatus.TextColor3 = colors.danger
+                    adminInput.Text = ""
+                end
+            end)
+        else
+            local adminTitle = Instance.new("TextLabel")
+            adminTitle.Size = UDim2.new(1, -10, 0, 30 * guiSize)
+            adminTitle.BackgroundTransparency = 1
+            adminTitle.Text = "👑 АДМИН ПАНЕЛЬ"
+            adminTitle.TextColor3 = colors.admin
+            adminTitle.TextSize = 20 * guiSize
+            adminTitle.Font = Enum.Font.GothamBold
+            adminTitle.Parent = functionsScrolling
+
+            -- Кнопка TEST (трах-трах) с вкл/выкл
+            testEnabled = false
+            testConnection = nil
+            
+            local testBtn = Instance.new("TextButton")
+            testBtn.Size = UDim2.new(1, -10, 0, 45 * guiSize)
+            testBtn.BackgroundColor3 = colors.panelLight
+            testBtn.Text = "🔞 TEST (ТРАХ-ТРАХ): OFF"
+            testBtn.TextColor3 = colors.text
+            testBtn.TextSize = 16 * guiSize
+            testBtn.Font = Enum.Font.GothamBold
+            testBtn.Parent = functionsScrolling
+
+            local testCorner = Instance.new("UICorner")
+            testCorner.CornerRadius = UDim.new(0, 8 * guiSize)
+            testCorner.Parent = testBtn
+
+            testBtn.MouseButton1Click:Connect(function()
+                testEnabled = not testEnabled
+                if testEnabled then
+                    testBtn.BackgroundColor3 = colors.admin
+                    testBtn.Text = "🔞 TEST (ТРАХ-ТРАХ): ON"
+                    doTestLoop()
+                else
+                    testBtn.BackgroundColor3 = colors.panelLight
+                    testBtn.Text = "🔞 TEST (ТРАХ-ТРАХ): OFF"
+                    if testConnection then
+                        testConnection:Disconnect()
+                        testConnection = nil
+                    end
+                end
+            end)
+
+            -- Turbo Fly
+            createBindButton("Turbo Fly", function() return turboFlyEnabled end, function(v) 
+                turboFlyEnabled = v 
+                updateFly()
+            end, "TurboFly")
+            createSlider("Турбо скорость", 100, 500, function() return turboFlySpeed end, function(v) turboFlySpeed = v end, "")
+
+            -- Невидимость
+            createBindButton("Invisible", function() return invisibleEnabled end, function(v) 
+                invisibleEnabled = v 
+                updateInvisibility()
+            end, "Invisible")
+        end
     end
 end
 
@@ -2009,9 +2228,4 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
-print("✅ Nez0x UI - ФИНАЛЬНАЯ ВЕРСИЯ (БЕЗ FOV)")
-print("📌 AIM 360° - полный обзор")
-print("📌 БИНДЫ - работают и обновляют GUI")
-print("📌 DYNAMIC ISLAND - как на айфоне")
-print("📌 ALWAYS SPRINT - работает")
-print("📌 NOSLOW - работает")
+print("✅ Nez0x UI - Сосал???")
