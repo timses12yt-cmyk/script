@@ -2123,7 +2123,7 @@ function updateFunctions()
             adminStatus.Parent = functionsScrolling
 
             adminBtn.MouseButton1Click:Connect(function()
-                if adminInput.Text == "6247" then
+                if adminInput.Text == "674267" then
                     adminUnlocked = true
                     updateFunctions()
                 else
