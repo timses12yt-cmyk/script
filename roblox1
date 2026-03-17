@@ -1,4 +1,5 @@
--- Nez0x UI - ULTIMATE (БЕЗ FOV)
+-- Nez0x UI - ULTIMATE (БЕЗ FOV) - ПОЛНАЯ ВЕРСИЯ
+-- Пароль ADMIN: 853488
 
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
@@ -119,32 +120,26 @@ UIS.InputBegan:Connect(function(input, gp)
     if isSettingBind and input.UserInputType == Enum.UserInputType.Keyboard then
         local key = input.KeyCode
         if key ~= Enum.KeyCode.Unknown then
-            -- Сохраняем бинд
             binds[currentBindName] = {
                 key = key,
                 func = currentBindFunction
             }
             
-            -- Обновляем текст на кнопке
             if bindButtons[currentBindName] then
                 bindButtons[currentBindName].Text = string.format("[%s]", tostring(key):gsub("Enum.KeyCode.", ""))
             end
             
-            -- Сохраняем в конфиг
             saveConfig()
             
-            -- Закрываем UI
             isSettingBind = false
             currentBindFunction = nil
             currentBindName = nil
             if bindGui then bindGui:Destroy() bindGui = nil end
         end
     else
-        -- Проверяем нажатие биндов
         for name, bind in pairs(binds) do
             if input.KeyCode == bind.key then
                 bind.func()
-                -- После выполнения функции обновляем интерфейс
                 updateFunctions()
             end
         end
@@ -224,6 +219,33 @@ local themes = {
         text = Color3.fromRGB(250, 220, 255),
         textDim = Color3.fromRGB(180, 150, 200),
     },
+    ["Красная"] = {
+        background = Color3.fromRGB(20, 5, 5),
+        panel = Color3.fromRGB(35, 10, 10),
+        panelLight = Color3.fromRGB(50, 20, 20),
+        accent = Color3.fromRGB(200, 30, 30),
+        accentLight = Color3.fromRGB(230, 60, 60),
+        text = Color3.fromRGB(255, 220, 220),
+        textDim = Color3.fromRGB(180, 120, 120),
+    },
+    ["Зеленая"] = {
+        background = Color3.fromRGB(5, 20, 5),
+        panel = Color3.fromRGB(10, 35, 10),
+        panelLight = Color3.fromRGB(20, 50, 20),
+        accent = Color3.fromRGB(30, 200, 30),
+        accentLight = Color3.fromRGB(60, 230, 60),
+        text = Color3.fromRGB(220, 255, 220),
+        textDim = Color3.fromRGB(120, 180, 120),
+    },
+    ["Огненная"] = {
+        background = Color3.fromRGB(30, 10, 5),
+        panel = Color3.fromRGB(50, 20, 10),
+        panelLight = Color3.fromRGB(70, 30, 15),
+        accent = Color3.fromRGB(255, 100, 0),
+        accentLight = Color3.fromRGB(255, 150, 50),
+        text = Color3.fromRGB(255, 220, 180),
+        textDim = Color3.fromRGB(200, 140, 100),
+    },
 }
 
 -- Текущие цвета
@@ -292,7 +314,6 @@ timeLabel.Font = Enum.Font.GothamBold
 timeLabel.ZIndex = 2001
 timeLabel.Parent = island
 
--- Анимация при наведении
 island.MouseEnter:Connect(function()
     TweenService:Create(island, TweenInfo.new(0.2), {Size = UDim2.new(0, 280, 0, 48)}):Play()
     TweenService:Create(island, TweenInfo.new(0.2), {Position = UDim2.new(0.5, -140, 0, 13)}):Play()
@@ -305,7 +326,6 @@ island.MouseLeave:Connect(function()
     timeLabel.TextSize = 18
 end)
 
--- Обновление времени
 spawn(function()
     while true do
         local dateTime = os.date("*t")
@@ -315,7 +335,7 @@ spawn(function()
     end
 end)
 
--- ===== ГЛАВНОЕ ОКНО С РАЗМЫТИЕМ =====
+-- ===== ГЛАВНОЕ ОКНО =====
 local main = Instance.new("Frame")
 main.Name = "MainWindow"
 main.Size = UDim2.new(0, 1000 * guiSize, 0, 700 * guiSize)
@@ -327,7 +347,6 @@ main.Visible = false
 main.ZIndex = 1001
 main.Parent = gui
 
--- Эффект размытия (стекло)
 local glassEffect = Instance.new("Frame")
 glassEffect.Size = UDim2.new(1, 0, 1, 0)
 glassEffect.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -336,19 +355,16 @@ glassEffect.BorderSizePixel = 0
 glassEffect.ZIndex = 1002
 glassEffect.Parent = main
 
--- Закругление углов
 local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 18)
 mainCorner.Parent = main
 
--- Обводка
 local mainStroke = Instance.new("UIStroke")
 mainStroke.Color = colors.accentLight
 mainStroke.Thickness = 1.5
 mainStroke.Transparency = 0.5
 mainStroke.Parent = main
 
--- Заголовок окна
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 50)
 title.Position = UDim2.new(0, 0, 0, 0)
@@ -360,7 +376,6 @@ title.Font = Enum.Font.GothamBold
 title.ZIndex = 1003
 title.Parent = main
 
--- Левая панель - модули
 local modulesPanel = Instance.new("Frame")
 modulesPanel.Name = "ModulesPanel"
 modulesPanel.Size = UDim2.new(0, 220 * guiSize, 1, -50)
@@ -375,7 +390,6 @@ local modulesCorner = Instance.new("UICorner")
 modulesCorner.CornerRadius = UDim.new(0, 12)
 modulesCorner.Parent = modulesPanel
 
--- Заголовок модулей
 local modulesTitle = Instance.new("TextLabel")
 modulesTitle.Size = UDim2.new(1, 0, 0, 30)
 modulesTitle.Position = UDim2.new(0, 10, 0, 5)
@@ -388,7 +402,6 @@ modulesTitle.TextXAlignment = Enum.TextXAlignment.Left
 modulesTitle.ZIndex = 1004
 modulesTitle.Parent = modulesPanel
 
--- Контейнер для кнопок модулей
 local modulesScrolling = Instance.new("ScrollingFrame")
 modulesScrolling.Name = "ModulesScrolling"
 modulesScrolling.Size = UDim2.new(1, 0, 1, -40)
@@ -408,7 +421,6 @@ modulesLayout.SortOrder = Enum.SortOrder.LayoutOrder
 modulesLayout.Padding = UDim.new(0, 5)
 modulesLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
--- Правая панель - функции
 local functionsPanel = Instance.new("Frame")
 functionsPanel.Name = "FunctionsPanel"
 functionsPanel.Size = UDim2.new(1, -240 * guiSize, 1, -50)
@@ -423,7 +435,6 @@ local functionsCorner = Instance.new("UICorner")
 functionsCorner.CornerRadius = UDim.new(0, 12)
 functionsCorner.Parent = functionsPanel
 
--- Заголовок выбранного модуля
 local functionsTitle = Instance.new("TextLabel")
 functionsTitle.Size = UDim2.new(1, -20, 0, 35)
 functionsTitle.Position = UDim2.new(0, 10, 0, 5)
@@ -436,7 +447,6 @@ functionsTitle.TextXAlignment = Enum.TextXAlignment.Left
 functionsTitle.ZIndex = 1004
 functionsTitle.Parent = functionsPanel
 
--- Контейнер для функций
 local functionsScrolling = Instance.new("ScrollingFrame")
 functionsScrolling.Name = "FunctionsScrolling"
 functionsScrolling.Size = UDim2.new(1, -20, 1, -45)
@@ -460,7 +470,6 @@ functionsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 local currentModule = "COMBAT"
 local modules = {"COMBAT", "MOVEMENT", "VISUALS", "PLAYER", "ESP", "MISC", "FRIENDS", "TELEPORT", "THEME", "ADMIN"}
 
--- Состояния функций
 local aimbotEnabled = false
 local aimbotThroughWalls = false
 local flyEnabled = false
@@ -481,11 +490,10 @@ local alwaysSprintEnabled = false
 local noSlowEnabled = false
 local adminUnlocked = false
 local invisibleEnabled = false
-local testEnabled = false  -- ПЕРЕМЕЩЕНО ИЗ ADMIN
+local testEnabled = false
 local turboFlyEnabled = false
 local killAllEnabled = false
 
--- Настройки
 local aimbotSpeed = 0.5
 local aimbotRandom = 0.1
 local flySpeed = 50
@@ -494,28 +502,23 @@ local speedPower = 50
 local jumpPower = 100
 local autoAttackRange = 20
 
--- Система друзей
 local friends = {}
-
--- Система точек телепортации
 local teleportPoints = {}
-
--- Настройки ESP (что подсвечивать)
 local espMode = "Все"
 
--- Настройки Particles
 local particleSettings = {
     count = 30,
     size = 0.5,
     speed = 2,
     spread = 50,
     lifetime = 5,
+    mode = "Круговой"
 }
 
--- Функция для бесконечного зума
+local particleModes = {"Круговой", "Вертикальный", "Крест", "Вихрь", "Сфера"}
+
 local zoomEnabled = false
 
--- Обработка зума
 UIS.InputChanged:Connect(function(input, gp)
     if gp then return end
     if not zoomEnabled then return end
@@ -530,7 +533,6 @@ UIS.InputChanged:Connect(function(input, gp)
     end
 end)
 
--- Функция для трах-трах (test) - ПЕРЕНЕСЕНА В MOVEMENT
 local testConnection = nil
 
 local function doTestLoop()
@@ -542,7 +544,6 @@ local function doTestLoop()
         local hrp = player.Character:FindFirstChild("HumanoidRootPart")
         if not hrp then return end
         
-        -- Находим ближайшего игрока
         local closest = nil
         local shortest = math.huge
         
@@ -560,20 +561,16 @@ local function doTestLoop()
             local targetPos = closest.Character.HumanoidRootPart.Position
             local lookVector = closest.Character.HumanoidRootPart.CFrame.LookVector
             
-            -- Чередуем позиции: сзади на расстоянии и сзади вплотную
             local time = tick() % 0.6
             if time < 0.3 then
-                -- Сзади на расстоянии 3 студии
                 hrp.CFrame = CFrame.new(targetPos - lookVector * 3, targetPos)
             else
-                -- Сзади вплотную
                 hrp.CFrame = CFrame.new(targetPos - lookVector * 1, targetPos)
             end
         end
     end)
 end
 
--- Функция Kill All (остается в ADMIN)
 local killAllConnection = nil
 local killAllTarget = nil
 
@@ -586,7 +583,6 @@ local function doKillAllLoop()
         local hrp = player.Character:FindFirstChild("HumanoidRootPart")
         if not hrp then return end
         
-        -- Находим ближайшего игрока
         local closest = nil
         local shortest = math.huge
         
@@ -606,10 +602,8 @@ local function doKillAllLoop()
             local targetPos = closest.Character.HumanoidRootPart.Position
             local lookVector = closest.Character.HumanoidRootPart.CFrame.LookVector
             
-            -- Постоянно сзади вплотную
             hrp.CFrame = CFrame.new(targetPos - lookVector * 1.5, targetPos)
             
-            -- Аим на этого игрока
             if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 local camera = Workspace.CurrentCamera
                 camera.CFrame = CFrame.lookAt(camera.CFrame.Position, closest.Character.Head.Position)
@@ -618,21 +612,19 @@ local function doKillAllLoop()
     end)
 end
 
--- Функция УХОДА (НОВАЯ - в ADMIN) - отходит от игрока с включенным TEST
 local escapeConnection = nil
-local escapeDistance = 15 -- Дистанция для отхода
+local escapeEnabled = false
+local escapeDistance = 15
 
 local function doEscapeLoop()
     if escapeConnection then escapeConnection:Disconnect() end
     
     escapeConnection = RunService.Heartbeat:Connect(function()
-        -- Работает только когда включен TEST и включен режим ухода
         if not testEnabled or not escapeEnabled or not player.Character then return end
         
         local hrp = player.Character:FindFirstChild("HumanoidRootPart")
         if not hrp then return end
         
-        -- Находим ближайшего игрока
         local closest = nil
         local shortest = math.huge
         
@@ -650,12 +642,9 @@ local function doEscapeLoop()
             local targetPos = closest.Character.HumanoidRootPart.Position
             local direction = (hrp.Position - targetPos).Unit
             
-            -- Если дистанция меньше заданной - отходим
             if shortest < escapeDistance then
-                -- Отходим от игрока
                 hrp.CFrame = CFrame.new(targetPos + direction * escapeDistance, targetPos + direction * escapeDistance * 2)
             else
-                -- Если дистанция больше - возвращаемся к обычному TEST поведению
                 local lookVector = closest.Character.HumanoidRootPart.CFrame.LookVector
                 local time = tick() % 0.6
                 if time < 0.3 then
@@ -668,7 +657,6 @@ local function doEscapeLoop()
     end)
 end
 
--- Функция невидимости
 local function updateInvisibility()
     if not player.Character then return end
     
@@ -687,7 +675,6 @@ local function updateInvisibility()
     end
 end
 
--- Функция турбо флая (объединенная с обычным)
 local flyConnection = nil
 local function updateFly()
     if flyConnection then flyConnection:Disconnect() flyConnection = nil end
@@ -721,6 +708,7 @@ end
 local particles = {}
 local angles = {}
 local particlesTarget = false
+local particleTime = 0
 
 local function getClosestPlayer()
     local closest
@@ -745,7 +733,27 @@ local function getClosestPlayer()
     return closest
 end
 
+-- СНАЧАЛА clearParticles
+local function clearParticles()
+    for _, p in ipairs(particles) do
+        if p then p:Destroy() end
+    end
+    particles = {}
+    angles = {}
+end
+
+local function updateParticleColor()
+    for _, p in ipairs(particles) do
+        if p and p:IsA("Part") then
+            p.Color = colors.accentLight
+        end
+    end
+end
+
+-- ПОТОМ createParticles
 local function createParticles()
+    clearParticles()
+    
     for i = 1, particleSettings.count do
         local p = Instance.new("Part")
         p.Shape = Enum.PartType.Ball
@@ -759,14 +767,8 @@ local function createParticles()
         table.insert(particles, p)
         table.insert(angles, math.random() * math.pi * 2)
     end
-end
-
-local function clearParticles()
-    for _, p in ipairs(particles) do
-        if p then p:Destroy() end
-    end
-    particles = {}
-    angles = {}
+    
+    particleTime = 0
 end
 
 RunService.RenderStepped:Connect(function(dt)
@@ -785,89 +787,60 @@ RunService.RenderStepped:Connect(function(dt)
     local root = targetChar:FindFirstChild("HumanoidRootPart")
     if not root then return end
     
+    particleTime = particleTime + dt
+    
     for i, p in ipairs(particles) do
         angles[i] = angles[i] + dt * 2
-        local x = math.cos(angles[i]) * 8
-        local z = math.sin(angles[i]) * 8
-        local target = root.Position + Vector3.new(x, 1, z)
-        p.Position = p.Position:Lerp(target, 0.06)
-    end
-end)
-
--- ===== ФУНКЦИИ СОХРАНЕНИЯ/ЗАГРУЗКИ =====
-local configFileName = "Nez0xConfig.json"
-
-local function saveConfig()
-    local data = {
-        friends = friends,
-        teleportPoints = teleportPoints,
-        colors = colors,
-        guiSize = guiSize,
-        mainTransparency = mainTransparency,
-        panelTransparency = panelTransparency,
-        buttonTransparency = buttonTransparency,
-        particleSettings = particleSettings,
-        espMode = espMode,
-        binds = binds,
-        settings = {
-            bgTransparency = bgTransparency,
-            aimbotSpeed = aimbotSpeed,
-            aimbotRandom = aimbotRandom,
-            aimbotThroughWalls = aimbotThroughWalls,
-            flySpeed = flySpeed,
-            turboFlySpeed = turboFlySpeed,
-            speedPower = speedPower,
-            jumpPower = jumpPower,
-            autoAttackRange = autoAttackRange,
-        }
-    }
-    local success = pcall(function()
-        writefile(configFileName, HttpService:JSONEncode(data))
-    end)
-    if success then
-        print("✅ Конфиг сохранен")
-    end
-end
-
-local function loadConfig()
-    local success, data = pcall(function()
-        return readfile(configFileName)
-    end)
-    if success and data then
-        local decoded = HttpService:JSONDecode(data)
-        if decoded then
-            friends = decoded.friends or {}
-            teleportPoints = decoded.teleportPoints or {}
-            guiSize = decoded.guiSize or 1.0
-            mainTransparency = decoded.mainTransparency or 0.3
-            panelTransparency = decoded.panelTransparency or 0.2
-            buttonTransparency = decoded.buttonTransparency or 0.2
-            particleSettings = decoded.particleSettings or particleSettings
-            espMode = decoded.espMode or "Все"
-            binds = decoded.binds or {}
+        
+        if particleSettings.mode == "Круговой" then
+            local x = math.cos(angles[i]) * 8
+            local z = math.sin(angles[i]) * 8
+            local target = root.Position + Vector3.new(x, 1, z)
+            p.Position = p.Position:Lerp(target, 0.06)
             
-            if decoded.colors then
-                for k, v in pairs(decoded.colors) do
-                    colors[k] = Color3.new(v.R, v.G, v.B)
-                end
+        elseif particleSettings.mode == "Вертикальный" then
+            local x = math.cos(angles[i]) * 8
+            local z = math.sin(angles[i]) * 8
+            local yOffset = math.sin(particleTime * 2 + i) * 3
+            local target = root.Position + Vector3.new(x, 1 + yOffset, z)
+            p.Position = p.Position:Lerp(target, 0.06)
+            
+        elseif particleSettings.mode == "Крест" then
+            local angle = angles[i]
+            local radius = 8
+            
+            if i % 2 == 0 then
+                local x = math.cos(angle) * radius
+                local z = math.sin(angle) * radius
+                local target = root.Position + Vector3.new(x, 1, z)
+                p.Position = p.Position:Lerp(target, 0.06)
+            else
+                local x = math.cos(angle + math.pi/4) * radius
+                local z = math.sin(angle + math.pi/4) * radius
+                local target = root.Position + Vector3.new(x, 1, z)
+                p.Position = p.Position:Lerp(target, 0.06)
             end
             
-            if decoded.settings then
-                aimbotSpeed = decoded.settings.aimbotSpeed or 0.5
-                aimbotRandom = decoded.settings.aimbotRandom or 0.1
-                aimbotThroughWalls = decoded.settings.aimbotThroughWalls or false
-                flySpeed = decoded.settings.flySpeed or 50
-                turboFlySpeed = decoded.settings.turboFlySpeed or 200
-                speedPower = decoded.settings.speedPower or 50
-                jumpPower = decoded.settings.jumpPower or 100
-                autoAttackRange = decoded.settings.autoAttackRange or 20
-            end
+        elseif particleSettings.mode == "Вихрь" then
+            local radius = 5 + math.sin(particleTime * 3 + i) * 3
+            local height = math.sin(particleTime * 2 + i) * 4
+            local x = math.cos(angles[i] + particleTime) * radius
+            local z = math.sin(angles[i] + particleTime) * radius
+            local target = root.Position + Vector3.new(x, 2 + height, z)
+            p.Position = p.Position:Lerp(target, 0.06)
+            
+        elseif particleSettings.mode == "Сфера" then
+            local theta = angles[i] + particleTime
+            local phi = angles[i] * 2
+            local radius = 6
+            local x = math.sin(theta) * math.cos(phi) * radius
+            local y = math.sin(theta) * math.sin(phi) * radius
+            local z = math.cos(theta) * radius
+            local target = root.Position + Vector3.new(x, y + 2, z)
+            p.Position = p.Position:Lerp(target, 0.06)
         end
     end
-end
-
-loadConfig()
-
+end)
 -- ===== РАБОЧИЕ ФУНКЦИИ =====
 
 local function addRandomness(target, amount)
@@ -880,13 +853,11 @@ local function addRandomness(target, amount)
     return target + randomOffset
 end
 
--- Функция проверки видимости (для аима через стены)
 local function isTargetVisible(targetPart)
     if aimbotThroughWalls then
-        return true -- Если включен аим через стены - всегда видим
+        return true
     end
     
-    -- Проверка на видимость через рейкаст
     local camera = Workspace.CurrentCamera
     local origin = camera.CFrame.Position
     local target = targetPart.Position
@@ -897,8 +868,6 @@ local function isTargetVisible(targetPart)
     
     local raycastResult = Workspace:Raycast(origin, (target - origin).Unit * (target - origin).Magnitude, rayParams)
     
-    -- Если рейкаст ничего не задел - цель видна
-    -- Или если задел, но это тот же персонаж
     if not raycastResult then
         return true
     elseif raycastResult.Instance and raycastResult.Instance:IsDescendantOf(targetPart.Parent) then
@@ -908,7 +877,6 @@ local function isTargetVisible(targetPart)
     return false
 end
 
--- AIMBOT (360° - БЕЗ FOV)
 RunService.RenderStepped:Connect(function()
     if aimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) and player.Character then
         local closest = nil
@@ -920,12 +888,10 @@ RunService.RenderStepped:Connect(function()
                 
                 local head = p.Character.Head
                 
-                -- Проверка видимости (учитывает настройку aimbotThroughWalls)
                 if not isTargetVisible(head) then
                     continue
                 end
                 
-                -- Выбор цели по расстоянию (360° - без FOV)
                 local dist = (player.Character.HumanoidRootPart.Position - head.Position).Magnitude
                 if dist < shortest then
                     shortest = dist
@@ -944,7 +910,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- NOCLIP
 RunService.Stepped:Connect(function()
     if noclipEnabled and player.Character then
         for _, v in ipairs(player.Character:GetDescendants()) do
@@ -955,7 +920,6 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- INFINITE JUMP
 UIS.JumpRequest:Connect(function()
     if infJumpEnabled and player.Character then
         local hrp = player.Character:FindFirstChild("HumanoidRootPart")
@@ -965,7 +929,6 @@ UIS.JumpRequest:Connect(function()
     end
 end)
 
--- SPEED
 RunService.Heartbeat:Connect(function()
     if speedEnabled and player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
@@ -982,7 +945,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- JUMP POWER
 RunService.Heartbeat:Connect(function()
     if jumpEnabled and player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
@@ -1000,7 +962,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ALWAYS SPRINT
 RunService.Heartbeat:Connect(function()
     if alwaysSprintEnabled and player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
@@ -1014,7 +975,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- NOSLOW
 RunService.Heartbeat:Connect(function()
     if noSlowEnabled and player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
@@ -1028,7 +988,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- FULLBRIGHT
 local defaultBrightness = Lighting.Brightness
 local defaultClock = Lighting.ClockTime
 local defaultShadows = Lighting.GlobalShadows
@@ -1054,7 +1013,6 @@ local function updateFullbright()
     end
 end
 
--- NO FOG
 local function updateNoFog()
     if noFogEnabled then
         Lighting.FogEnd = 9e9
@@ -1065,7 +1023,6 @@ local function updateNoFog()
     end
 end
 
--- GOD MODE
 RunService.Heartbeat:Connect(function()
     if godModeEnabled and player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
@@ -1075,7 +1032,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- CLICK TP
 UIS.InputBegan:Connect(function(input, gp)
     if gp then return end
     if clickTpEnabled and input.UserInputType == Enum.UserInputType.MouseButton1 and UIS:IsKeyDown(Enum.KeyCode.F) then
@@ -1086,7 +1042,6 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- INFINITE AMMO
 local function modifyWeaponAmmo(weapon)
     local ammo = weapon:FindFirstChild("Ammo")
     local maxAmmo = weapon:FindFirstChild("MaxAmmo")
@@ -1105,7 +1060,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- AUTO ATTACK
 RunService.Heartbeat:Connect(function()
     if autoAttackEnabled and player.Character then
         local myPos = player.Character:FindFirstChild("HumanoidRootPart")
@@ -1129,7 +1083,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ESP
 local espObjects = {}
 
 local function createESP(plr)
@@ -1139,7 +1092,6 @@ local function createESP(plr)
         local head = char:WaitForChild("Head")
         local root = char:WaitForChild("HumanoidRootPart")
         
-        -- Highlight
         local highlight = Instance.new("Highlight")
         highlight.FillTransparency = 0.5
         highlight.OutlineColor = Color3.fromRGB(255, 80, 80)
@@ -1149,7 +1101,6 @@ local function createESP(plr)
         highlight.Parent = char
         table.insert(espObjects, highlight)
         
-        -- Billboard с именем
         local bill = Instance.new("BillboardGui")
         bill.Size = UDim2.new(0, 150, 0, 36)
         bill.StudsOffset = Vector3.new(0, 3, 0)
@@ -1177,7 +1128,6 @@ local function createESP(plr)
         
         table.insert(espObjects, bill)
         
-        -- Обновление расстояния
         local connection
         connection = RunService.RenderStepped:Connect(function()
             if not espEnabled then
@@ -1200,7 +1150,6 @@ local function createESP(plr)
 end
 
 local function updateESP()
-    -- Очищаем старые объекты ESP
     for _, obj in ipairs(espObjects) do
         pcall(function() obj:Destroy() end)
     end
@@ -1231,7 +1180,6 @@ spawn(function()
     end
 end)
 
--- UNHOOK
 local function unhook()
     if flyConnection then flyConnection:Disconnect() end
     if testConnection then testConnection:Disconnect() end
@@ -1388,7 +1336,6 @@ local function createSlider(text, min, max, getVar, setVar, suffix)
     return container
 end
 
--- ФУНКЦИЯ СОЗДАНИЯ КНОПКИ С БИНДОМ
 local function createBindButton(text, getVar, setVar, bindName)
     local container = Instance.new("Frame")
     container.Name = text .. "Container"
@@ -1396,7 +1343,6 @@ local function createBindButton(text, getVar, setVar, bindName)
     container.Size = UDim2.new(1, 0, 0, 45)
     container.Parent = functionsScrolling
 
-    -- Основная кнопка-переключатель
     local mainBtn = Instance.new("TextButton")
     mainBtn.Name = text .. "MainBtn"
     mainBtn.Size = UDim2.new(0.7, -5, 0, 40)
@@ -1436,7 +1382,6 @@ local function createBindButton(text, getVar, setVar, bindName)
     status.ZIndex = 1007
     status.Parent = mainBtn
 
-    -- Кнопка для бинда
     local bindBtn = Instance.new("TextButton")
     bindBtn.Size = UDim2.new(0.28, 0, 0, 40)
     bindBtn.Position = UDim2.new(0.72, 0, 0, 0)
@@ -1453,10 +1398,8 @@ local function createBindButton(text, getVar, setVar, bindName)
     bindCorner.CornerRadius = UDim.new(0, 8)
     bindCorner.Parent = bindBtn
 
-    -- Сохраняем кнопку для обновления текста
     bindButtons[bindName] = bindBtn
 
-    -- Функция обновления состояния кнопки
     local function updateButtonState()
         local state = getVar()
         status.Text = state and "ON" or "OFF"
@@ -1464,7 +1407,6 @@ local function createBindButton(text, getVar, setVar, bindName)
         mainBtn.BackgroundColor3 = state and colors.accent or colors.panelLight
     end
 
-    -- Обработчик основной кнопки
     mainBtn.MouseButton1Click:Connect(function()
         setVar(not getVar())
         updateButtonState()
@@ -1495,7 +1437,7 @@ local function createBindButton(text, getVar, setVar, bindName)
                 killAllTarget = nil
             end
         end
-        if text == "TEST (ТРАХ-ТРАХ)" then  -- ПЕРЕНЕСЕНО
+        if text == "TEST (ТРАХ-ТРАХ)" then
             if getVar() then
                 doTestLoop()
             else
@@ -1504,7 +1446,6 @@ local function createBindButton(text, getVar, setVar, bindName)
                     testConnection = nil
                 end
             end
-            -- Обновляем состояние ухода если включен
             if escapeEnabled then
                 doEscapeLoop()
             end
@@ -1517,7 +1458,6 @@ local function createBindButton(text, getVar, setVar, bindName)
         end
     end)
 
-    -- Обработчик кнопки бинда
     bindBtn.MouseButton1Click:Connect(function()
         startBindSetup(bindName, function()
             setVar(not getVar())
@@ -1549,7 +1489,7 @@ local function createBindButton(text, getVar, setVar, bindName)
                     killAllTarget = nil
                 end
             end
-            if text == "TEST (ТРАХ-ТРАХ)" then  -- ПЕРЕНЕСЕНО
+            if text == "TEST (ТРАХ-ТРАХ)" then
                 if getVar() then
                     doTestLoop()
                 else
@@ -1558,7 +1498,6 @@ local function createBindButton(text, getVar, setVar, bindName)
                         testConnection = nil
                     end
                 end
-                -- Обновляем состояние ухода если включен
                 if escapeEnabled then
                     doEscapeLoop()
                 end
@@ -1575,7 +1514,6 @@ local function createBindButton(text, getVar, setVar, bindName)
     return {main = mainBtn, bind = bindBtn, status = status, update = updateButtonState}
 end
 
--- Функция обновления контента
 function updateFunctions()
     for _, child in ipairs(functionsScrolling:GetChildren()) do
         if not child:IsA("UIListLayout") then child:Destroy() end
@@ -1696,6 +1634,41 @@ function updateFunctions()
             particlesTarget = v 
         end, "ParticlesTarget")
         
+        local modeNote = Instance.new("TextLabel")
+        modeNote.Size = UDim2.new(1, 0, 0, 30)
+        modeNote.BackgroundTransparency = 1
+        modeNote.Text = "Режим частиц:"
+        modeNote.TextColor3 = colors.textDim
+        modeNote.TextSize = 14
+        modeNote.TextXAlignment = Enum.TextXAlignment.Left
+        modeNote.ZIndex = 1006
+        modeNote.Parent = functionsScrolling
+        
+        for _, mode in ipairs(particleModes) do
+            local modeBtn = Instance.new("TextButton")
+            modeBtn.Size = UDim2.new(1, -10, 0, 35)
+            modeBtn.BackgroundColor3 = (particleSettings.mode == mode) and colors.accent or colors.panelLight
+            modeBtn.BackgroundTransparency = buttonTransparency
+            modeBtn.Text = mode
+            modeBtn.TextColor3 = colors.text
+            modeBtn.TextSize = 14
+            modeBtn.Font = Enum.Font.Gotham
+            modeBtn.ZIndex = 1006
+            modeBtn.Parent = functionsScrolling
+            
+            local modeCorner = Instance.new("UICorner")
+            modeCorner.CornerRadius = UDim.new(0, 6)
+            modeCorner.Parent = modeBtn
+            
+            modeBtn.MouseButton1Click:Connect(function()
+                particleSettings.mode = mode
+                if particlesEnabled then
+                    createParticles()
+                end
+                updateFunctions()
+            end)
+        end
+        
         createSlider("Кол-во частиц", 5, 100, function() return particleSettings.count end, function(v) 
             particleSettings.count = math.floor(v) 
             if particlesEnabled then
@@ -1753,7 +1726,6 @@ function updateFunctions()
         end)
         
     elseif currentModule == "FRIENDS" then
-        -- Поиск игроков
         local searchInput = Instance.new("TextBox")
         searchInput.Size = UDim2.new(1, -20, 0, 40)
         searchInput.Position = UDim2.new(0, 10, 0, 0)
@@ -1771,7 +1743,6 @@ function updateFunctions()
         searchCorner.CornerRadius = UDim.new(0, 8)
         searchCorner.Parent = searchInput
         
-        -- Результаты поиска
         local searchResults = Instance.new("ScrollingFrame")
         searchResults.Size = UDim2.new(1, -20, 0, 150)
         searchResults.Position = UDim2.new(0, 10, 0, 45)
@@ -1857,7 +1828,6 @@ function updateFunctions()
             searchResults.Visible = found > 0
         end)
         
-        -- Кнопка обновления списка друзей
         local refreshFriendsBtn = Instance.new("TextButton")
         refreshFriendsBtn.Size = UDim2.new(1, -20, 0, 35)
         refreshFriendsBtn.Position = UDim2.new(0, 10, 0, 200)
@@ -1896,7 +1866,6 @@ function updateFunctions()
             updateFunctions()
         end)
         
-        -- Список друзей
         local friendNote = Instance.new("TextLabel")
         friendNote.Size = UDim2.new(1, -20, 0, 30)
         friendNote.Position = UDim2.new(0, 10, 0, 240)
@@ -1973,7 +1942,6 @@ function updateFunctions()
         end
         
     elseif currentModule == "TELEPORT" then
-        -- Заголовок
         local tpNote = Instance.new("TextLabel")
         tpNote.Size = UDim2.new(1, -20, 0, 30)
         tpNote.Position = UDim2.new(0, 10, 0, 0)
@@ -1986,7 +1954,6 @@ function updateFunctions()
         tpNote.ZIndex = 1006
         tpNote.Parent = functionsScrolling
 
-        -- Текущие координаты
         local posLabel = Instance.new("TextLabel")
         posLabel.Size = UDim2.new(1, -20, 0, 30)
         posLabel.Position = UDim2.new(0, 10, 0, 30)
@@ -2003,7 +1970,6 @@ function updateFunctions()
         posCorner.CornerRadius = UDim.new(0, 8)
         posCorner.Parent = posLabel
 
-        -- Поле для названия новой точки
         local pointNameInput = Instance.new("TextBox")
         pointNameInput.Size = UDim2.new(0.45, -5, 0, 40)
         pointNameInput.Position = UDim2.new(0, 10, 0, 65)
@@ -2021,7 +1987,6 @@ function updateFunctions()
         nameCorner.CornerRadius = UDim.new(0, 8)
         nameCorner.Parent = pointNameInput
 
-        -- Кнопка сохранения
         local savePointBtn = Instance.new("TextButton")
         savePointBtn.Size = UDim2.new(0.45, -5, 0, 40)
         savePointBtn.Position = UDim2.new(0.55, 0, 0, 65)
@@ -2038,7 +2003,6 @@ function updateFunctions()
         saveCorner.CornerRadius = UDim.new(0, 8)
         saveCorner.Parent = savePointBtn
 
-        -- ТЕЛЕПОРТ ПО НИКУ
         local tpPlayerNote = Instance.new("TextLabel")
         tpPlayerNote.Size = UDim2.new(1, -20, 0, 30)
         tpPlayerNote.Position = UDim2.new(0, 10, 0, 110)
@@ -2051,7 +2015,6 @@ function updateFunctions()
         tpPlayerNote.ZIndex = 1006
         tpPlayerNote.Parent = functionsScrolling
 
-        -- Поиск игрока для ТП
         local tpSearchInput = Instance.new("TextBox")
         tpSearchInput.Size = UDim2.new(1, -20, 0, 40)
         tpSearchInput.Position = UDim2.new(0, 10, 0, 140)
@@ -2069,7 +2032,6 @@ function updateFunctions()
         tpSearchCorner.CornerRadius = UDim.new(0, 8)
         tpSearchCorner.Parent = tpSearchInput
 
-        -- Результаты поиска для ТП
         local tpSearchResults = Instance.new("ScrollingFrame")
         tpSearchResults.Size = UDim2.new(1, -20, 0, 120)
         tpSearchResults.Position = UDim2.new(0, 10, 0, 185)
@@ -2154,7 +2116,6 @@ function updateFunctions()
             tpSearchResults.Visible = found > 0
         end)
 
-        -- Список сохраненных точек
         local pointsList = Instance.new("ScrollingFrame")
         pointsList.Size = UDim2.new(1, -20, 0, 200)
         pointsList.Position = UDim2.new(0, 10, 0, 310)
@@ -2316,7 +2277,6 @@ function updateFunctions()
         updatePointsList()
         
     elseif currentModule == "THEME" then
-        -- Настройки прозрачности
         createSlider("Прозрачность окна", 0, 0.9, function() return mainTransparency end, function(v) 
             mainTransparency = v
             main.BackgroundTransparency = v
@@ -2332,7 +2292,6 @@ function updateFunctions()
         
         createSlider("Прозрачность кнопок", 0, 0.5, function() return buttonTransparency end, function(v) 
             buttonTransparency = v
-            -- Обновляем все кнопки
             for _, child in ipairs(modulesScrolling:GetChildren()) do
                 if child:IsA("TextButton") then
                     child.BackgroundTransparency = v
@@ -2389,6 +2348,11 @@ function updateFunctions()
                 island.BackgroundColor3 = colors.panel
                 modulesTitle.TextColor3 = colors.accentLight
                 functionsTitle.TextColor3 = colors.accentLight
+                islandStroke.Color = colors.accentLight
+                
+                if particlesEnabled and #particles > 0 then
+                    updateParticleColor()
+                end
                 
                 for _, child in ipairs(modulesScrolling:GetChildren()) do
                     if child:IsA("TextButton") then
@@ -2433,6 +2397,11 @@ function updateFunctions()
             island.BackgroundColor3 = colors.panel
             modulesTitle.TextColor3 = colors.accentLight
             functionsTitle.TextColor3 = colors.accentLight
+            islandStroke.Color = colors.accentLight
+            
+            if particlesEnabled and #particles > 0 then
+                updateParticleColor()
+            end
             
             for _, child in ipairs(modulesScrolling:GetChildren()) do
                 if child:IsA("TextButton") then
@@ -2504,7 +2473,7 @@ function updateFunctions()
             adminStatus.Size = UDim2.new(1, -20, 0, 25)
             adminStatus.Position = UDim2.new(0, 10, 0, 130)
             adminStatus.BackgroundTransparency = 1
-            adminStatus.Text = "Введите пароль 674267"
+            adminStatus.Text = ""
             adminStatus.TextColor3 = colors.textDim
             adminStatus.TextSize = 12
             adminStatus.Font = Enum.Font.Gotham
@@ -2534,7 +2503,6 @@ function updateFunctions()
             adminTitle.ZIndex = 1006
             adminTitle.Parent = functionsScrolling
 
-            -- Кнопка KILL ALL
             createBindButton("KILL ALL", function() return killAllEnabled end, function(v) 
                 killAllEnabled = v
                 if killAllEnabled then
@@ -2548,8 +2516,6 @@ function updateFunctions()
                 end
             end, "KillAll")
 
-            -- НОВАЯ ФУНКЦИЯ УХОДА
-            local escapeEnabled = false
             createBindButton("РЕЖИМ УХОДА (отход при TEST)", function() return escapeEnabled end, function(v) 
                 escapeEnabled = v
                 if escapeEnabled and testEnabled then
@@ -2564,14 +2530,12 @@ function updateFunctions()
             
             createSlider("Дистанция ухода", 5, 30, function() return escapeDistance end, function(v) escapeDistance = v end, "")
 
-            -- Turbo Fly
             createBindButton("Turbo Fly", function() return turboFlyEnabled end, function(v) 
                 turboFlyEnabled = v 
                 updateFly()
             end, "TurboFly")
             createSlider("Турбо скорость", 100, 500, function() return turboFlySpeed end, function(v) turboFlySpeed = v end, "")
 
-            -- Невидимость
             createBindButton("Invisible", function() return invisibleEnabled end, function(v) 
                 invisibleEnabled = v 
                 updateInvisibility()
@@ -2585,10 +2549,8 @@ for _, module in ipairs(modules) do
     createModuleButton(module)
 end
 
--- Инициализация
 updateFunctions()
 
--- Автосохранение
 spawn(function()
     while true do
         wait(60)
@@ -2596,7 +2558,6 @@ spawn(function()
     end
 end)
 
--- Горячие клавиши
 UIS.InputBegan:Connect(function(input, gp)
     if gp then return end
     
@@ -2615,3 +2576,8 @@ UIS.InputBegan:Connect(function(input, gp)
 end)
 
 print("✅ Nez0x UI - ПОЛНАЯ ВЕРСИЯ")
+print("📌 Пароль ADMIN: 853488")
+print("📌 M - открыть/закрыть меню")
+print("📌 F8 - выгрузить")
+print("📌 5 режимов частиц: Круговой, Вертикальный, Крест, Вихрь, Сфера")
+print("📌 Цвет частиц синхронизирован с темой")
