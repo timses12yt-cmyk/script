@@ -481,7 +481,7 @@ local alwaysSprintEnabled = false
 local noSlowEnabled = false
 local adminUnlocked = false
 local invisibleEnabled = false
-local testEnabled = false
+local testEnabled = false  -- ПЕРЕМЕЩЕНО ИЗ ADMIN
 local turboFlyEnabled = false
 local killAllEnabled = false
 
@@ -530,7 +530,7 @@ UIS.InputChanged:Connect(function(input, gp)
     end
 end)
 
--- Функция для трах-трах (test)
+-- Функция для трах-трах (test) - ПЕРЕНЕСЕНА В MOVEMENT
 local testConnection = nil
 
 local function doTestLoop()
@@ -573,7 +573,7 @@ local function doTestLoop()
     end)
 end
 
--- Функция Kill All (НОВАЯ)
+-- Функция Kill All (остается в ADMIN)
 local killAllConnection = nil
 local killAllTarget = nil
 
@@ -613,6 +613,56 @@ local function doKillAllLoop()
             if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 local camera = Workspace.CurrentCamera
                 camera.CFrame = CFrame.lookAt(camera.CFrame.Position, closest.Character.Head.Position)
+            end
+        end
+    end)
+end
+
+-- Функция УХОДА (НОВАЯ - в ADMIN) - отходит от игрока с включенным TEST
+local escapeConnection = nil
+local escapeDistance = 15 -- Дистанция для отхода
+
+local function doEscapeLoop()
+    if escapeConnection then escapeConnection:Disconnect() end
+    
+    escapeConnection = RunService.Heartbeat:Connect(function()
+        -- Работает только когда включен TEST и включен режим ухода
+        if not testEnabled or not escapeEnabled or not player.Character then return end
+        
+        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        
+        -- Находим ближайшего игрока
+        local closest = nil
+        local shortest = math.huge
+        
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local dist = (hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
+                if dist < shortest then
+                    shortest = dist
+                    closest = p
+                end
+            end
+        end
+        
+        if closest then
+            local targetPos = closest.Character.HumanoidRootPart.Position
+            local direction = (hrp.Position - targetPos).Unit
+            
+            -- Если дистанция меньше заданной - отходим
+            if shortest < escapeDistance then
+                -- Отходим от игрока
+                hrp.CFrame = CFrame.new(targetPos + direction * escapeDistance, targetPos + direction * escapeDistance * 2)
+            else
+                -- Если дистанция больше - возвращаемся к обычному TEST поведению
+                local lookVector = closest.Character.HumanoidRootPart.CFrame.LookVector
+                local time = tick() % 0.6
+                if time < 0.3 then
+                    hrp.CFrame = CFrame.new(targetPos - lookVector * 3, targetPos)
+                else
+                    hrp.CFrame = CFrame.new(targetPos - lookVector * 1, targetPos)
+                end
             end
         end
     end)
@@ -1186,6 +1236,7 @@ local function unhook()
     if flyConnection then flyConnection:Disconnect() end
     if testConnection then testConnection:Disconnect() end
     if killAllConnection then killAllConnection:Disconnect() end
+    if escapeConnection then escapeConnection:Disconnect() end
     updateESP()
     clearParticles()
     if gui then gui:Destroy() end
@@ -1444,6 +1495,20 @@ local function createBindButton(text, getVar, setVar, bindName)
                 killAllTarget = nil
             end
         end
+        if text == "TEST (ТРАХ-ТРАХ)" then  -- ПЕРЕНЕСЕНО
+            if getVar() then
+                doTestLoop()
+            else
+                if testConnection then
+                    testConnection:Disconnect()
+                    testConnection = nil
+                end
+            end
+            -- Обновляем состояние ухода если включен
+            if escapeEnabled then
+                doEscapeLoop()
+            end
+        end
         if text == "Fullbright" then
             updateFullbright()
         end
@@ -1484,6 +1549,20 @@ local function createBindButton(text, getVar, setVar, bindName)
                     killAllTarget = nil
                 end
             end
+            if text == "TEST (ТРАХ-ТРАХ)" then  -- ПЕРЕНЕСЕНО
+                if getVar() then
+                    doTestLoop()
+                else
+                    if testConnection then
+                        testConnection:Disconnect()
+                        testConnection = nil
+                    end
+                end
+                -- Обновляем состояние ухода если включен
+                if escapeEnabled then
+                    doEscapeLoop()
+                end
+            end
             if text == "Fullbright" then
                 updateFullbright()
             end
@@ -1517,6 +1596,17 @@ function updateFunctions()
         createSlider("Speed Power", 10, 200, function() return speedPower end, function(v) speedPower = v end, "")
         createBindButton("Jump Power", function() return jumpEnabled end, function(v) jumpEnabled = v end, "JumpPower")
         createSlider("Jump Power", 10, 200, function() return jumpPower end, function(v) jumpPower = v end, "")
+        createBindButton("TEST (ТРАХ-ТРАХ)", function() return testEnabled end, function(v) 
+            testEnabled = v
+            if testEnabled then
+                doTestLoop()
+            else
+                if testConnection then
+                    testConnection:Disconnect()
+                    testConnection = nil
+                end
+            end
+        end, "Test")
         
     elseif currentModule == "VISUALS" then
         createBindButton("Fullbright", function() return fullbrightEnabled end, function(v) fullbrightEnabled = v updateFullbright() end, "Fullbright")
@@ -1645,7 +1735,7 @@ function updateFunctions()
         
         local saveConfigBtn = Instance.new("TextButton")
         saveConfigBtn.Size = UDim2.new(1, 0, 0, 40)
-        saveConfigBtn.BackgroundColor3 = colors.success
+        saveConfigBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
         saveConfigBtn.BackgroundTransparency = buttonTransparency
         saveConfigBtn.Text = "💾 СОХРАНИТЬ КОНФИГ"
         saveConfigBtn.TextColor3 = Color3.new(1,1,1)
@@ -1948,7 +2038,7 @@ function updateFunctions()
         saveCorner.CornerRadius = UDim.new(0, 8)
         saveCorner.Parent = savePointBtn
 
-        -- ТЕЛЕПОРТ ПО НИКУ (НОВОЕ)
+        -- ТЕЛЕПОРТ ПО НИКУ
         local tpPlayerNote = Instance.new("TextLabel")
         tpPlayerNote.Size = UDim2.new(1, -20, 0, 30)
         tpPlayerNote.Position = UDim2.new(0, 10, 0, 110)
@@ -2422,7 +2512,7 @@ function updateFunctions()
             adminStatus.Parent = functionsScrolling
 
             adminBtn.MouseButton1Click:Connect(function()
-                if adminInput.Text == "674267" then
+                if adminInput.Text == "853488" then
                     adminUnlocked = true
                     updateFunctions()
                 else
@@ -2444,20 +2534,7 @@ function updateFunctions()
             adminTitle.ZIndex = 1006
             adminTitle.Parent = functionsScrolling
 
-            -- Кнопка TEST (трах-трах)
-            createBindButton("TEST (ТРАХ-ТРАХ)", function() return testEnabled end, function(v) 
-                testEnabled = v
-                if testEnabled then
-                    doTestLoop()
-                else
-                    if testConnection then
-                        testConnection:Disconnect()
-                        testConnection = nil
-                    end
-                end
-            end, "Test")
-
-            -- Кнопка KILL ALL (НОВАЯ)
+            -- Кнопка KILL ALL
             createBindButton("KILL ALL", function() return killAllEnabled end, function(v) 
                 killAllEnabled = v
                 if killAllEnabled then
@@ -2470,6 +2547,22 @@ function updateFunctions()
                     killAllTarget = nil
                 end
             end, "KillAll")
+
+            -- НОВАЯ ФУНКЦИЯ УХОДА
+            local escapeEnabled = false
+            createBindButton("РЕЖИМ УХОДА (отход при TEST)", function() return escapeEnabled end, function(v) 
+                escapeEnabled = v
+                if escapeEnabled and testEnabled then
+                    doEscapeLoop()
+                else
+                    if escapeConnection then
+                        escapeConnection:Disconnect()
+                        escapeConnection = nil
+                    end
+                end
+            end, "Escape")
+            
+            createSlider("Дистанция ухода", 5, 30, function() return escapeDistance end, function(v) escapeDistance = v end, "")
 
             -- Turbo Fly
             createBindButton("Turbo Fly", function() return turboFlyEnabled end, function(v) 
@@ -2522,4 +2615,3 @@ UIS.InputBegan:Connect(function(input, gp)
 end)
 
 print("✅ Nez0x UI - ПОЛНАЯ ВЕРСИЯ")
-print("📌 В THEME: слайдеры прозрачности")
