@@ -1,8 +1,8 @@
--- загрузка
 if not game:IsLoaded() then
 	game.Loaded:Wait()
 end
 
+-- SERVICES
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local UIS = game:GetService("UserInputService")
@@ -10,12 +10,12 @@ local UIS = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- BLUR
+-- BLUR (ВСЕГДА)
 local blur = Lighting:FindFirstChild("VisionBlur")
 if not blur then
 	blur = Instance.new("BlurEffect")
 	blur.Name = "VisionBlur"
-	blur.Size = 20
+	blur.Size = 24
 	blur.Parent = Lighting
 end
 
@@ -29,25 +29,26 @@ gui.Parent = playerGui
 
 -- DYNAMIC ISLAND
 local island = Instance.new("Frame")
-island.Size = UDim2.new(0,260,0,44)
+island.Size = UDim2.new(0,260,0,42)
 island.Position = UDim2.new(0.5,-130,0,12)
-island.BackgroundColor3 = Color3.fromRGB(0,0,0)
-island.BackgroundTransparency = 0.35
+island.BackgroundColor3 = Color3.fromRGB(20,20,20)
+island.BackgroundTransparency = 0.25
 island.Parent = gui
 
-Instance.new("UICorner",island).CornerRadius = UDim.new(1,0)
+Instance.new("UICorner", island).CornerRadius = UDim.new(1,0)
 
 local clock = Instance.new("TextLabel")
 clock.Size = UDim2.new(1,0,1,0)
 clock.BackgroundTransparency = 1
 clock.Font = Enum.Font.GothamBold
-clock.TextColor3 = Color3.new(1,1,1)
 clock.TextScaled = true
+clock.TextColor3 = Color3.new(1,1,1)
 clock.Parent = island
 
 task.spawn(function()
-	while task.wait(1) do
+	while true do
 		clock.Text = os.date("%H:%M:%S")
+		task.wait(1)
 	end
 end)
 
@@ -56,36 +57,33 @@ local main = Instance.new("Frame")
 main.Size = UDim2.new(0,1100,0,650)
 main.Position = UDim2.new(0.5,-550,0.5,-325)
 main.BackgroundColor3 = Color3.fromRGB(255,255,255)
-main.BackgroundTransparency = 0.86
+main.BackgroundTransparency = 0.87
 main.Parent = gui
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0,18)
-corner.Parent = main
+Instance.new("UICorner",main).CornerRadius = UDim.new(0,18)
 
--- стеклянная рамка
 local stroke = Instance.new("UIStroke")
-stroke.Thickness = 2
-stroke.Transparency = 0.4
 stroke.Color = Color3.fromRGB(255,255,255)
+stroke.Transparency = 0.4
+stroke.Thickness = 2
 stroke.Parent = main
 
 -- TITLE
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1,0,0,50)
 title.BackgroundTransparency = 1
-title.Text = "Vision Glass UI"
+title.Text = "Vision UI"
 title.Font = Enum.Font.GothamBold
 title.TextScaled = true
 title.TextColor3 = Color3.new(1,1,1)
 title.Parent = main
 
 -- TAB PANEL
-local tabPanel = Instance.new("Frame")
-tabPanel.Size = UDim2.new(0,220,1,-60)
-tabPanel.Position = UDim2.new(0,0,0,60)
-tabPanel.BackgroundTransparency = 1
-tabPanel.Parent = main
+local tabsFrame = Instance.new("Frame")
+tabsFrame.Size = UDim2.new(0,220,1,-60)
+tabsFrame.Position = UDim2.new(0,0,0,60)
+tabsFrame.BackgroundTransparency = 1
+tabsFrame.Parent = main
 
 -- CONTENT
 local content = Instance.new("Frame")
@@ -95,13 +93,14 @@ content.BackgroundTransparency = 1
 content.Parent = main
 
 local tabs = {}
+local tabButtons = {}
 
--- кнопка функция
-local function makeButton(parent,text,pos,callback)
+-- BUTTON CREATOR
+local function createButton(parent,text,y)
 
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0,260,0,50)
-	btn.Position = UDim2.new(0,20,0,pos)
+	btn.Size = UDim2.new(0,260,0,48)
+	btn.Position = UDim2.new(0,20,0,y)
 	btn.BackgroundColor3 = Color3.fromRGB(255,255,255)
 	btn.BackgroundTransparency = 0.75
 	btn.Text = text
@@ -111,26 +110,23 @@ local function makeButton(parent,text,pos,callback)
 
 	Instance.new("UICorner",btn).CornerRadius = UDim.new(1,0)
 
-	if callback then
-		btn.MouseButton1Click:Connect(callback)
-	end
-
+	return btn
 end
 
 -- TAB CREATOR
 local function createTab(i,name)
 
-	local tabButton = Instance.new("TextButton")
-	tabButton.Size = UDim2.new(1,-20,0,44)
-	tabButton.Position = UDim2.new(0,10,0,(i-1)*50)
-	tabButton.BackgroundColor3 = Color3.fromRGB(255,255,255)
-	tabButton.BackgroundTransparency = 0.8
-	tabButton.Text = name
-	tabButton.Font = Enum.Font.GothamBold
-	tabButton.TextScaled = true
-	tabButton.Parent = tabPanel
+	local tabBtn = Instance.new("TextButton")
+	tabBtn.Size = UDim2.new(1,-20,0,44)
+	tabBtn.Position = UDim2.new(0,10,0,(i-1)*50)
+	tabBtn.BackgroundColor3 = Color3.fromRGB(255,255,255)
+	tabBtn.BackgroundTransparency = 0.8
+	tabBtn.Text = name
+	tabBtn.Font = Enum.Font.GothamBold
+	tabBtn.TextScaled = true
+	tabBtn.Parent = tabsFrame
 
-	Instance.new("UICorner",tabButton).CornerRadius = UDim.new(1,0)
+	Instance.new("UICorner",tabBtn).CornerRadius = UDim.new(1,0)
 
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.new(1,0,1,0)
@@ -139,76 +135,83 @@ local function createTab(i,name)
 	frame.Parent = content
 
 	tabs[i] = frame
+	tabButtons[i] = tabBtn
 
-	tabButton.MouseButton1Click:Connect(function()
-		for _,f in pairs(tabs) do
-			f.Visible=false
+	tabBtn.MouseButton1Click:Connect(function()
+
+		for k,v in pairs(tabs) do
+			v.Visible = false
+			tabButtons[k].BackgroundTransparency = 0.8
 		end
-		frame.Visible=true
+
+		frame.Visible = true
+		tabBtn.BackgroundTransparency = 0.5
+
 	end)
 
 	return frame
-
 end
 
--- ТАБЫ
+-- CREATE TABS
 for i=1,8 do
 
-	local name="Таб "..i
-	if i==7 then name="THEME" end
+	local name = "Таб "..i
+	if i == 7 then name = "THEME" end
 
-	local tab=createTab(i,name)
+	local tab = createTab(i,name)
 
-	if i<=6 then
+	if i <= 6 then
+		createButton(tab,"Кнопка 1",0)
+		createButton(tab,"Кнопка 2",70)
+		createButton(tab,"Кнопка 3",140)
+	end
 
-		makeButton(tab,"Кнопка 1",0)
-		makeButton(tab,"Кнопка 2",70)
-		makeButton(tab,"Кнопка 3",140)
+	if i == 7 then
+
+		local b1 = createButton(tab,"Vision",0)
+		local b2 = createButton(tab,"Dark",70)
+		local b3 = createButton(tab,"Blue",140)
+
+		b1.MouseButton1Click:Connect(function()
+			main.BackgroundColor3 = Color3.fromRGB(255,255,255)
+		end)
+
+		b2.MouseButton1Click:Connect(function()
+			main.BackgroundColor3 = Color3.fromRGB(35,35,40)
+		end)
+
+		b3.MouseButton1Click:Connect(function()
+			main.BackgroundColor3 = Color3.fromRGB(80,120,255)
+		end)
 
 	end
 
-	if i==7 then
+	if i == 8 then
 
-		makeButton(tab,"Vision",0,function()
-			main.BackgroundColor3=Color3.fromRGB(255,255,255)
-		end)
+		createButton(tab,"Кнопка 1",0)
+		createButton(tab,"Кнопка 2",70)
 
-		makeButton(tab,"Dark",70,function()
-			main.BackgroundColor3=Color3.fromRGB(40,40,45)
-		end)
+		local unload = createButton(tab,"Выгрузка",140)
 
-		makeButton(tab,"Blue",140,function()
-			main.BackgroundColor3=Color3.fromRGB(90,120,255)
-		end)
-
-	end
-
-	if i==8 then
-
-		makeButton(tab,"Кнопка 1",0)
-		makeButton(tab,"Кнопка 2",70)
-
-		makeButton(tab,"Выгрузка",140,function()
+		unload.MouseButton1Click:Connect(function()
 			gui:Destroy()
-			if blur then blur:Destroy() end
 		end)
 
 	end
 
 end
 
--- HOTKEY
+-- HOTKEYS
 UIS.InputBegan:Connect(function(input,gp)
 
 	if gp then return end
 
-	if input.KeyCode==Enum.KeyCode.M then
-		main.Visible=not main.Visible
+	if input.KeyCode == Enum.KeyCode.M then
+		main.Visible = not main.Visible
 	end
 
-	if input.KeyCode==Enum.KeyCode.F8 then
+	if input.KeyCode == Enum.KeyCode.F8 then
 		gui:Destroy()
-		if blur then blur:Destroy() end
 	end
 
 end)
