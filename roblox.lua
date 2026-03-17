@@ -1,3 +1,12 @@
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+if not player then
+	return
+end
+
+local playerGui = player:WaitForChild("PlayerGui")
+
 --// SERVICES
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
