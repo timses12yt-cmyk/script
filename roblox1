@@ -1,5 +1,5 @@
 -- Nez0x UI - ULTIMATE (БЕЗ FOV) - ПОЛНАЯ ВЕРСИЯ
--- Пароль ADMIN: 853488
+-- Пароль ADMIN: 676767
 
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
@@ -519,6 +519,92 @@ local particleModes = {"Круговой", "Вертикальный", "Крес
 
 local zoomEnabled = false
 
+-- ===== ФУНКЦИИ СОХРАНЕНИЯ/ЗАГРУЗКИ =====
+local configFileName = "Nez0xConfig.json"
+
+local function saveConfig()
+    local data = {
+        friends = friends,
+        teleportPoints = teleportPoints,
+        colors = {},
+        guiSize = guiSize,
+        mainTransparency = mainTransparency,
+        panelTransparency = panelTransparency,
+        buttonTransparency = buttonTransparency,
+        particleSettings = particleSettings,
+        espMode = espMode,
+        binds = binds,
+        settings = {
+            aimbotSpeed = aimbotSpeed,
+            aimbotRandom = aimbotRandom,
+            aimbotThroughWalls = aimbotThroughWalls,
+            flySpeed = flySpeed,
+            turboFlySpeed = turboFlySpeed,
+            speedPower = speedPower,
+            jumpPower = jumpPower,
+            autoAttackRange = autoAttackRange,
+        }
+    }
+    
+    for k, v in pairs(colors) do
+        data.colors[k] = {R = v.R, G = v.G, B = v.B}
+    end
+    
+    local success, err = pcall(function()
+        writefile(configFileName, HttpService:JSONEncode(data))
+    end)
+    
+    if success then
+        print("✅ Конфиг сохранен")
+    else
+        warn("❌ Ошибка сохранения: " .. tostring(err))
+    end
+end
+
+local function loadConfig()
+    local success, content = pcall(function()
+        return readfile(configFileName)
+    end)
+    
+    if success and content and content ~= "" then
+        local decoded = HttpService:JSONDecode(content)
+        if decoded then
+            friends = decoded.friends or {}
+            teleportPoints = decoded.teleportPoints or {}
+            guiSize = decoded.guiSize or 1.0
+            mainTransparency = decoded.mainTransparency or 0.3
+            panelTransparency = decoded.panelTransparency or 0.2
+            buttonTransparency = decoded.buttonTransparency or 0.2
+            particleSettings = decoded.particleSettings or particleSettings
+            espMode = decoded.espMode or "Все"
+            binds = decoded.binds or {}
+            
+            if decoded.colors then
+                for k, v in pairs(decoded.colors) do
+                    colors[k] = Color3.new(v.R, v.G, v.B)
+                end
+            end
+            
+            if decoded.settings then
+                aimbotSpeed = decoded.settings.aimbotSpeed or 0.5
+                aimbotRandom = decoded.settings.aimbotRandom or 0.1
+                aimbotThroughWalls = decoded.settings.aimbotThroughWalls or false
+                flySpeed = decoded.settings.flySpeed or 50
+                turboFlySpeed = decoded.settings.turboFlySpeed or 200
+                speedPower = decoded.settings.speedPower or 50
+                jumpPower = decoded.settings.jumpPower or 100
+                autoAttackRange = decoded.settings.autoAttackRange or 20
+            end
+        end
+        print("✅ Конфиг загружен")
+    else
+        print("⚠️ Новый конфиг")
+    end
+end
+
+loadConfig()
+
+-- ===== РАБОЧИЕ ФУНКЦИИ =====
 UIS.InputChanged:Connect(function(input, gp)
     if gp then return end
     if not zoomEnabled then return end
@@ -733,7 +819,6 @@ local function getClosestPlayer()
     return closest
 end
 
--- СНАЧАЛА clearParticles
 local function clearParticles()
     for _, p in ipairs(particles) do
         if p then p:Destroy() end
@@ -750,7 +835,6 @@ local function updateParticleColor()
     end
 end
 
--- ПОТОМ createParticles
 local function createParticles()
     clearParticles()
     
@@ -841,7 +925,6 @@ RunService.RenderStepped:Connect(function(dt)
         end
     end
 end)
--- ===== РАБОЧИЕ ФУНКЦИИ =====
 
 local function addRandomness(target, amount)
     if amount <= 0 then return target end
@@ -2576,8 +2659,4 @@ UIS.InputBegan:Connect(function(input, gp)
 end)
 
 print("✅ Nez0x UI - ПОЛНАЯ ВЕРСИЯ")
-print("📌 Пароль ADMIN: 853488")
-print("📌 M - открыть/закрыть меню")
-print("📌 F8 - выгрузить")
-print("📌 5 режимов частиц: Круговой, Вертикальный, Крест, Вихрь, Сфера")
 print("📌 Цвет частиц синхронизирован с темой")
