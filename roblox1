@@ -1,5 +1,5 @@
 -- Nez0x UI - ULTIMATE (БЕЗ FOV) - ПОЛНАЯ ВЕРСИЯ
--- Пароль ADMIN: 676767
+-- Пароль ADMIN: 853488
 
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
@@ -7,11 +7,8 @@ local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
-local VirtualUser = game:GetService("VirtualUser")
-local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
-local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 
@@ -478,7 +475,6 @@ local infJumpEnabled = false
 local speedEnabled = false
 local jumpEnabled = false
 local fullbrightEnabled = false
-local blurEnabled = false
 local noFogEnabled = false
 local clickTpEnabled = false
 local godModeEnabled = false
@@ -743,6 +739,142 @@ local function doEscapeLoop()
     end)
 end
 
+-- ===== ФУНКЦИЯ БЕССМЕРТИЕ + СЛЕЖЕНИЕ (ИСПРАВЛЕНО - ТЕПЕРЬ ЗА ИГРОКОМ) =====
+local followConnection = nil
+local followTarget = nil
+local followEnabled = false
+local followDistance = 75
+
+-- Поиск игрока по нику
+local function findPlayerByName(searchName)
+    if not searchName or searchName == "" then return nil end
+    
+    local exactMatch = nil
+    local partialMatches = {}
+    local search = searchName:lower()
+    
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player then
+            local name = p.Name:lower()
+            local displayName = p.DisplayName:lower()
+            
+            if name == search or displayName == search then
+                exactMatch = p
+                break
+            elseif name:find(search) or displayName:find(search) then
+                table.insert(partialMatches, p)
+            end
+        end
+    end
+    
+    if exactMatch then
+        return exactMatch
+    elseif #partialMatches == 1 then
+        return partialMatches[1]
+    elseif #partialMatches > 1 then
+        local names = ""
+        for i, p in ipairs(partialMatches) do
+            names = names .. i .. ". " .. p.Name .. "  "
+        end
+        print("⚠️ Найдено несколько: " .. names)
+        return nil
+    end
+    
+    return nil
+end
+
+-- Функция слежения (СЛЕДУЕТ ЗА ИГРОКОМ, а не телепортирует в него)
+local function doFollowLoop()
+    if followConnection then followConnection:Disconnect() end
+    
+    followConnection = RunService.Heartbeat:Connect(function()
+        if not followEnabled or not player.Character then return end
+        
+        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        
+        -- Поиск цели
+        local target = nil
+        if followTarget and type(followTarget) == "string" then
+            target = findPlayerByName(followTarget)
+        end
+        
+        if not target then
+            local closest = nil
+            local shortest = math.huge
+            
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    if friends[p.UserId] then continue end
+                    local dist = (hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
+                    if dist < shortest then
+                        shortest = dist
+                        closest = p
+                    end
+                end
+            end
+            target = closest
+        end
+        
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local targetPos = target.Character.HumanoidRootPart.Position
+            local direction = (targetPos - hrp.Position).Unit
+            local dist = (hrp.Position - targetPos).Magnitude
+            
+            -- Движение к цели (а не телепортация)
+            if dist > followDistance then
+                -- Если далеко - бежим к цели
+                hrp.Velocity = direction * 100
+            else
+                -- Если в зоне - держимся на дистанции
+                local moveDir = (targetPos - hrp.Position).Unit
+                hrp.Velocity = moveDir * 50
+            end
+            
+            -- БЕССМЕРТИЕ
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if hum then
+                if hum.Health < hum.MaxHealth then
+                    hum.Health = hum.MaxHealth
+                end
+            end
+            
+            -- Золотое свечение
+            for _, part in ipairs(player.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Material = Enum.Material.Neon
+                    part.Color = Color3.fromRGB(255, 215, 0)
+                    part.Transparency = 0.3
+                end
+            end
+        end
+    end)
+end
+
+-- Остановка слежения
+local function stopFollow()
+    followEnabled = false
+    followTarget = nil
+    if followConnection then
+        followConnection:Disconnect()
+        followConnection = nil
+    end
+    if player.Character then
+        -- Возвращаем нормальный вид
+        for _, part in ipairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Material = Enum.Material.Plastic
+                part.Transparency = 0
+                part.Color = Color3.new(1, 1, 1)
+            end
+        end
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.PlatformStand = false
+        end
+    end
+end
+
 local function updateInvisibility()
     if not player.Character then return end
     
@@ -926,6 +1058,138 @@ RunService.RenderStepped:Connect(function(dt)
     end
 end)
 
+-- ===== ESP НА ПРЕДМЕТЫ (с автообновлением) =====
+local espItems = {}
+local itemNames = {
+    ["Tool"] = "🔧 Инструмент",
+    ["Weapon"] = "🔫 Оружие",
+    ["Ammo"] = "📦 Патроны",
+    ["Health"] = "💊 Аптечка",
+    ["Armor"] = "🛡️ Броня",
+    ["Food"] = "🍎 Еда",
+    ["Drink"] = "🥤 Напиток",
+    ["Key"] = "🔑 Ключ",
+    ["Money"] = "💰 Деньги",
+    ["Chest"] = "📦 Сундук",
+    ["Backpack"] = "🎒 Рюкзак",
+    ["Medkit"] = "🏥 Аптечка",
+    ["Bandage"] = "🩹 Бинт",
+    ["Grenade"] = "💣 Граната"
+}
+
+local function isItemObject(obj)
+    if not obj then return false end
+    if not obj.Parent then return false end
+    
+    if obj:IsDescendantOf(player.Character) then return false end
+    
+    if obj:IsA("Tool") then
+        return true
+    end
+    
+    return false
+end
+
+local function getItemName(obj)
+    local name = obj.Name
+    for key, display in pairs(itemNames) do
+        if name:lower():find(key:lower()) then
+            return display
+        end
+    end
+    if obj:IsA("Tool") then
+        return "🔧 " .. name
+    end
+    return "📦 " .. name
+end
+
+local function createItemESP(item)
+    if espItems[item] then return end
+    
+    local bill = Instance.new("BillboardGui")
+    bill.Name = "ItemESP"
+    bill.Size = UDim2.new(0, 120, 0, 30)
+    bill.StudsOffset = Vector3.new(0, 1.5, 0)
+    bill.AlwaysOnTop = true
+    bill.Adornee = item
+    bill.Parent = item
+    
+    local bg = Instance.new("Frame")
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.BackgroundColor3 = colors.item
+    bg.BackgroundTransparency = 0.3
+    bg.Parent = bill
+    
+    local bgCorner = Instance.new("UICorner")
+    bgCorner.CornerRadius = UDim.new(0, 6)
+    bgCorner.Parent = bg
+    
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1, 0, 1, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = getItemName(item)
+    nameLabel.TextColor3 = Color3.new(1, 1, 1)
+    nameLabel.TextScaled = true
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.Parent = bg
+    
+    local highlight = Instance.new("Highlight")
+    highlight.FillColor = colors.item
+    highlight.FillTransparency = 0.4
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 100)
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = item
+    
+    espItems[item] = {billboard = bill, highlight = highlight}
+end
+
+local function removeItemESP(item)
+    local data = espItems[item]
+    if data then
+        if data.billboard then data.billboard:Destroy() end
+        if data.highlight then data.highlight:Destroy() end
+        espItems[item] = nil
+    end
+end
+
+local function updateItemESP()
+    -- Удаляем ESP для исчезнувших предметов
+    for item, _ in pairs(espItems) do
+        if not item or not item.Parent then
+            removeItemESP(item)
+        end
+    end
+    
+    if not espEnabled or (espMode ~= "Все" and espMode ~= "Предметы") then return end
+    
+    -- Добавляем новые предметы
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if isItemObject(obj) and not espItems[obj] then
+            createItemESP(obj)
+        end
+    end
+end
+
+spawn(function()
+    while true do
+        wait(1)
+        updateItemESP()
+    end
+end)
+
+Workspace.DescendantAdded:Connect(function(obj)
+    if espEnabled and (espMode == "Все" or espMode == "Предметы") and isItemObject(obj) then
+        wait(0.1)
+        createItemESP(obj)
+    end
+end)
+
+Workspace.DescendantRemoving:Connect(function(obj)
+    if espItems[obj] then
+        removeItemESP(obj)
+    end
+end)
+
 local function addRandomness(target, amount)
     if amount <= 0 then return target end
     local randomOffset = Vector3.new(
@@ -937,9 +1201,7 @@ local function addRandomness(target, amount)
 end
 
 local function isTargetVisible(targetPart)
-    if aimbotThroughWalls then
-        return true
-    end
+    if aimbotThroughWalls then return true end
     
     local camera = Workspace.CurrentCamera
     local origin = camera.CFrame.Position
@@ -956,7 +1218,6 @@ local function isTargetVisible(targetPart)
     elseif raycastResult.Instance and raycastResult.Instance:IsDescendantOf(targetPart.Parent) then
         return true
     end
-    
     return false
 end
 
@@ -968,13 +1229,8 @@ RunService.RenderStepped:Connect(function()
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
                 if friends[p.UserId] then continue end
-                
                 local head = p.Character.Head
-                
-                if not isTargetVisible(head) then
-                    continue
-                end
-                
+                if not isTargetVisible(head) then continue end
                 local dist = (player.Character.HumanoidRootPart.Position - head.Position).Magnitude
                 if dist < shortest then
                     shortest = dist
@@ -986,9 +1242,7 @@ RunService.RenderStepped:Connect(function()
         if closest then
             local targetPos = addRandomness(closest.Position, aimbotRandom)
             Workspace.CurrentCamera.CFrame = Workspace.CurrentCamera.CFrame:Lerp(
-                CFrame.new(Workspace.CurrentCamera.CFrame.Position, targetPos), 
-                aimbotSpeed
-            )
+                CFrame.new(Workspace.CurrentCamera.CFrame.Position, targetPos), aimbotSpeed)
         end
     end
 end)
@@ -996,9 +1250,7 @@ end)
 RunService.Stepped:Connect(function()
     if noclipEnabled and player.Character then
         for _, v in ipairs(player.Character:GetDescendants()) do
-            if v:IsA("BasePart") then
-                v.CanCollide = false
-            end
+            if v:IsA("BasePart") then v.CanCollide = false end
         end
     end
 end)
@@ -1006,24 +1258,18 @@ end)
 UIS.JumpRequest:Connect(function()
     if infJumpEnabled and player.Character then
         local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z)
-        end
+        if hrp then hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z) end
     end
 end)
 
 RunService.Heartbeat:Connect(function()
     if speedEnabled and player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.WalkSpeed = speedPower
-        end
+        if hum then hum.WalkSpeed = speedPower end
     else
         if player.Character then
             local hum = player.Character:FindFirstChildOfClass("Humanoid")
-            if hum and hum.WalkSpeed ~= 16 then
-                hum.WalkSpeed = 16
-            end
+            if hum and hum.WalkSpeed ~= 16 then hum.WalkSpeed = 16 end
         end
     end
 end)
@@ -1038,9 +1284,7 @@ RunService.Heartbeat:Connect(function()
     else
         if player.Character then
             local hum = player.Character:FindFirstChildOfClass("Humanoid")
-            if hum and hum.JumpPower ~= 50 then
-                hum.JumpPower = 50
-            end
+            if hum and hum.JumpPower ~= 50 then hum.JumpPower = 50 end
         end
     end
 end)
@@ -1109,9 +1353,7 @@ end
 RunService.Heartbeat:Connect(function()
     if godModeEnabled and player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
-        if hum and hum.Health < hum.MaxHealth then
-            hum.Health = hum.MaxHealth
-        end
+        if hum and hum.Health < hum.MaxHealth then hum.Health = hum.MaxHealth end
     end
 end)
 
@@ -1151,13 +1393,10 @@ RunService.Heartbeat:Connect(function()
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
                 if friends[p.UserId] then continue end
-                
                 local dist = (myPos.Position - p.Character.HumanoidRootPart.Position).Magnitude
                 if dist <= autoAttackRange then
                     for _, tool in ipairs(player.Character:GetChildren()) do
-                        if tool:IsA("Tool") then
-                            tool:Activate()
-                        end
+                        if tool:IsA("Tool") then tool:Activate() end
                     end
                     break
                 end
@@ -1166,9 +1405,10 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
+-- ===== ESP НА ИГРОКОВ (друзья зеленые) =====
 local espObjects = {}
 
-local function createESP(plr)
+local function createESPPlayer(plr)
     if plr == player then return end
     
     local function onChar(char)
@@ -1177,9 +1417,12 @@ local function createESP(plr)
         
         local highlight = Instance.new("Highlight")
         highlight.FillTransparency = 0.5
-        highlight.OutlineColor = Color3.fromRGB(255, 80, 80)
+        
         if friends[plr.UserId] then
-            highlight.OutlineColor = colors.friend
+            highlight.OutlineColor = colors.friend -- Зеленый для друзей
+            highlight.FillColor = colors.friend
+        else
+            highlight.OutlineColor = Color3.fromRGB(255, 80, 80) -- Красный для врагов
         end
         highlight.Parent = char
         table.insert(espObjects, highlight)
@@ -1192,7 +1435,11 @@ local function createESP(plr)
         
         local bg = Instance.new("Frame")
         bg.Size = UDim2.new(1, 0, 1, 0)
-        bg.BackgroundColor3 = colors.panel
+        if friends[plr.UserId] then
+            bg.BackgroundColor3 = colors.friend
+        else
+            bg.BackgroundColor3 = colors.danger
+        end
         bg.BackgroundTransparency = 0.2
         bg.Parent = bill
         
@@ -1225,41 +1472,35 @@ local function createESP(plr)
         table.insert(espObjects, {Disconnect = function() if connection then connection:Disconnect() end end})
     end
     
-    if plr.Character then
-        onChar(plr.Character)
-    end
-    
+    if plr.Character then onChar(plr.Character) end
     plr.CharacterAdded:Connect(onChar)
 end
 
-local function updateESP()
+local function updateESPPlayers()
     for _, obj in ipairs(espObjects) do
         pcall(function() obj:Destroy() end)
     end
     espObjects = {}
     
     if not espEnabled then return end
-    
-    for _, p in ipairs(Players:GetPlayers()) do
-        createESP(p)
+    if espMode == "Все" or espMode == "Игроки" or espMode == "Друзья" then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if espMode == "Друзья" and not friends[p.UserId] then continue end
+            createESPPlayer(p)
+        end
     end
 end
 
 Players.PlayerAdded:Connect(function(p)
     p.CharacterAdded:Connect(function()
-        if espEnabled then
-            wait(0.5)
-            updateESP()
-        end
+        if espEnabled then wait(0.5) updateESPPlayers() end
     end)
 end)
 
 spawn(function()
     while true do
         wait(3)
-        if espEnabled then
-            updateESP()
-        end
+        if espEnabled then updateESPPlayers() end
     end
 end)
 
@@ -1268,14 +1509,14 @@ local function unhook()
     if testConnection then testConnection:Disconnect() end
     if killAllConnection then killAllConnection:Disconnect() end
     if escapeConnection then escapeConnection:Disconnect() end
-    updateESP()
+    if followConnection then followConnection:Disconnect() end
+    updateESPPlayers()
     clearParticles()
     if gui then gui:Destroy() end
     print("✅ Nez0x UI выгружен")
 end
 
 -- ===== ФУНКЦИИ СОЗДАНИЯ ЭЛЕМЕНТОВ =====
-
 local function createModuleButton(name)
     local btn = Instance.new("TextButton")
     btn.Name = name .. "Btn"
@@ -1494,51 +1735,28 @@ local function createBindButton(text, getVar, setVar, bindName)
         setVar(not getVar())
         updateButtonState()
         if text == "ESP" then
-            updateESP()
+            updateESPPlayers()
+            updateItemESP()
         end
-        if text == "Fly" or text == "Turbo Fly" then
-            updateFly()
-        end
-        if text == "Invisible" then
-            updateInvisibility()
-        end
+        if text == "Fly" or text == "Turbo Fly" then updateFly() end
+        if text == "Invisible" then updateInvisibility() end
         if text == "Particles" then
-            if getVar() then
-                createParticles()
-            else
-                clearParticles()
-            end
+            if getVar() then createParticles() else clearParticles() end
         end
         if text == "Kill All" then
-            if getVar() then
-                doKillAllLoop()
-            else
-                if killAllConnection then
-                    killAllConnection:Disconnect()
-                    killAllConnection = nil
-                end
+            if getVar() then doKillAllLoop() else
+                if killAllConnection then killAllConnection:Disconnect() killAllConnection = nil end
                 killAllTarget = nil
             end
         end
         if text == "TEST (ТРАХ-ТРАХ)" then
-            if getVar() then
-                doTestLoop()
-            else
-                if testConnection then
-                    testConnection:Disconnect()
-                    testConnection = nil
-                end
+            if getVar() then doTestLoop() else
+                if testConnection then testConnection:Disconnect() testConnection = nil end
             end
-            if escapeEnabled then
-                doEscapeLoop()
-            end
+            if escapeEnabled then doEscapeLoop() end
         end
-        if text == "Fullbright" then
-            updateFullbright()
-        end
-        if text == "No Fog" then
-            updateNoFog()
-        end
+        if text == "Fullbright" then updateFullbright() end
+        if text == "No Fog" then updateNoFog() end
     end)
 
     bindBtn.MouseButton1Click:Connect(function()
@@ -1546,51 +1764,28 @@ local function createBindButton(text, getVar, setVar, bindName)
             setVar(not getVar())
             updateButtonState()
             if text == "ESP" then
-                updateESP()
+                updateESPPlayers()
+                updateItemESP()
             end
-            if text == "Fly" or text == "Turbo Fly" then
-                updateFly()
-            end
-            if text == "Invisible" then
-                updateInvisibility()
-            end
+            if text == "Fly" or text == "Turbo Fly" then updateFly() end
+            if text == "Invisible" then updateInvisibility() end
             if text == "Particles" then
-                if getVar() then
-                    createParticles()
-                else
-                    clearParticles()
-                end
+                if getVar() then createParticles() else clearParticles() end
             end
             if text == "Kill All" then
-                if getVar() then
-                    doKillAllLoop()
-                else
-                    if killAllConnection then
-                        killAllConnection:Disconnect()
-                        killAllConnection = nil
-                    end
+                if getVar() then doKillAllLoop() else
+                    if killAllConnection then killAllConnection:Disconnect() killAllConnection = nil end
                     killAllTarget = nil
                 end
             end
             if text == "TEST (ТРАХ-ТРАХ)" then
-                if getVar() then
-                    doTestLoop()
-                else
-                    if testConnection then
-                        testConnection:Disconnect()
-                        testConnection = nil
-                    end
+                if getVar() then doTestLoop() else
+                    if testConnection then testConnection:Disconnect() testConnection = nil end
                 end
-                if escapeEnabled then
-                    doEscapeLoop()
-                end
+                if escapeEnabled then doEscapeLoop() end
             end
-            if text == "Fullbright" then
-                updateFullbright()
-            end
-            if text == "No Fog" then
-                updateNoFog()
-            end
+            if text == "Fullbright" then updateFullbright() end
+            if text == "No Fog" then updateNoFog() end
         end)
     end)
 
@@ -1617,17 +1812,7 @@ function updateFunctions()
         createSlider("Speed Power", 10, 200, function() return speedPower end, function(v) speedPower = v end, "")
         createBindButton("Jump Power", function() return jumpEnabled end, function(v) jumpEnabled = v end, "JumpPower")
         createSlider("Jump Power", 10, 200, function() return jumpPower end, function(v) jumpPower = v end, "")
-        createBindButton("TEST (ТРАХ-ТРАХ)", function() return testEnabled end, function(v) 
-            testEnabled = v
-            if testEnabled then
-                doTestLoop()
-            else
-                if testConnection then
-                    testConnection:Disconnect()
-                    testConnection = nil
-                end
-            end
-        end, "Test")
+        createBindButton("TEST (ТРАХ-ТРАХ)", function() return testEnabled end, function(v) testEnabled = v if testEnabled then doTestLoop() else if testConnection then testConnection:Disconnect() testConnection = nil end end end, "Test")
         
     elseif currentModule == "VISUALS" then
         createBindButton("Fullbright", function() return fullbrightEnabled end, function(v) fullbrightEnabled = v updateFullbright() end, "Fullbright")
@@ -1663,10 +1848,7 @@ function updateFunctions()
         end)
         
     elseif currentModule == "ESP" then
-        createBindButton("ESP", function() return espEnabled end, function(v) 
-            espEnabled = v 
-            if v then updateESP() else updateESP() end
-        end, "ESP")
+        createBindButton("ESP", function() return espEnabled end, function(v) espEnabled = v if v then updateESPPlayers() updateItemESP() else updateESPPlayers() end end, "ESP")
         
         local modeNote = Instance.new("TextLabel")
         modeNote.Size = UDim2.new(1, 0, 0, 30)
@@ -1698,24 +1880,14 @@ function updateFunctions()
             modeBtn.MouseButton1Click:Connect(function()
                 espMode = mode
                 saveConfig()
-                if espEnabled then updateESP() end
+                if espEnabled then updateESPPlayers() updateItemESP() end
                 updateFunctions()
             end)
         end
         
     elseif currentModule == "MISC" then
-        createBindButton("Particles", function() return particlesEnabled end, function(v) 
-            particlesEnabled = v 
-            if v then
-                createParticles()
-            else
-                clearParticles()
-            end
-        end, "Particles")
-        
-        createBindButton("Particles Target", function() return particlesTarget end, function(v) 
-            particlesTarget = v 
-        end, "ParticlesTarget")
+        createBindButton("Particles", function() return particlesEnabled end, function(v) particlesEnabled = v if v then createParticles() else clearParticles() end end, "Particles")
+        createBindButton("Particles Target", function() return particlesTarget end, function(v) particlesTarget = v end, "ParticlesTarget")
         
         local modeNote = Instance.new("TextLabel")
         modeNote.Size = UDim2.new(1, 0, 0, 30)
@@ -1745,27 +1917,13 @@ function updateFunctions()
             
             modeBtn.MouseButton1Click:Connect(function()
                 particleSettings.mode = mode
-                if particlesEnabled then
-                    createParticles()
-                end
+                if particlesEnabled then createParticles() end
                 updateFunctions()
             end)
         end
         
-        createSlider("Кол-во частиц", 5, 100, function() return particleSettings.count end, function(v) 
-            particleSettings.count = math.floor(v) 
-            if particlesEnabled then
-                clearParticles()
-                createParticles()
-            end
-        end, "")
-        createSlider("Размер частиц", 0.2, 2, function() return particleSettings.size end, function(v) 
-            particleSettings.size = v 
-            if particlesEnabled then
-                clearParticles()
-                createParticles()
-            end
-        end, "")
+        createSlider("Кол-во частиц", 5, 100, function() return particleSettings.count end, function(v) particleSettings.count = math.floor(v) if particlesEnabled then clearParticles() createParticles() end end, "")
+        createSlider("Размер частиц", 0.2, 2, function() return particleSettings.size end, function(v) particleSettings.size = v if particlesEnabled then clearParticles() createParticles() end end, "")
         
         createBindButton("Auto Attack", function() return autoAttackEnabled end, function(v) autoAttackEnabled = v end, "AutoAttack")
         createSlider("Attack Range", 5, 50, function() return autoAttackRange end, function(v) autoAttackRange = v end, "")
@@ -1785,9 +1943,7 @@ function updateFunctions()
         unhookCorner.CornerRadius = UDim.new(0, 8)
         unhookCorner.Parent = unhookBtn
         
-        unhookBtn.MouseButton1Click:Connect(function()
-            unhook()
-        end)
+        unhookBtn.MouseButton1Click:Connect(function() unhook() end)
         
         local saveConfigBtn = Instance.new("TextButton")
         saveConfigBtn.Size = UDim2.new(1, 0, 0, 40)
@@ -1804,9 +1960,7 @@ function updateFunctions()
         saveConfigCorner.CornerRadius = UDim.new(0, 8)
         saveConfigCorner.Parent = saveConfigBtn
         
-        saveConfigBtn.MouseButton1Click:Connect(function()
-            saveConfig()
-        end)
+        saveConfigBtn.MouseButton1Click:Connect(function() saveConfig() end)
         
     elseif currentModule == "FRIENDS" then
         local searchInput = Instance.new("TextBox")
@@ -1845,21 +1999,15 @@ function updateFunctions()
         
         searchInput:GetPropertyChangedSignal("Text"):Connect(function()
             local query = searchInput.Text:lower()
-            if query == "" then
-                searchResults.Visible = false
-                return
-            end
+            if query == "" then searchResults.Visible = false return end
             
-            for _, child in ipairs(searchResults:GetChildren()) do
-                if child:IsA("TextButton") then child:Destroy() end
-            end
+            for _, child in ipairs(searchResults:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
             
             local found = 0
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= player and not friends[p.UserId] then
                     local name = p.Name:lower()
                     local displayName = p.DisplayName:lower()
-                    
                     if name:find(query) or displayName:find(query) then
                         local resultBtn = Instance.new("TextButton")
                         resultBtn.Size = UDim2.new(1, -10, 0, 35)
@@ -1899,15 +2047,13 @@ function updateFunctions()
                             saveConfig()
                             searchInput.Text = ""
                             searchResults.Visible = false
-                            if espEnabled then updateESP() end
+                            if espEnabled then updateESPPlayers() end
                             updateFunctions()
                         end)
-                        
                         found = found + 1
                     end
                 end
             end
-            
             searchResults.Visible = found > 0
         end)
         
@@ -1930,22 +2076,14 @@ function updateFunctions()
         refreshFriendsBtn.MouseButton1Click:Connect(function()
             local newFriends = {}
             local currentPlayers = {}
-            
-            for _, p in ipairs(Players:GetPlayers()) do
-                currentPlayers[p.UserId] = p
-            end
-            
+            for _, p in ipairs(Players:GetPlayers()) do currentPlayers[p.UserId] = p end
             for userId, name in pairs(friends) do
-                if currentPlayers[userId] then
-                    newFriends[userId] = name
-                else
-                    print("❌ Друг " .. name .. " покинул сервер")
-                end
+                if currentPlayers[userId] then newFriends[userId] = name
+                else print("❌ Друг " .. name .. " покинул сервер") end
             end
-            
             friends = newFriends
             saveConfig()
-            if espEnabled then updateESP() end
+            if espEnabled then updateESPPlayers() end
             updateFunctions()
         end)
         
@@ -2019,7 +2157,7 @@ function updateFunctions()
             removeBtn.MouseButton1Click:Connect(function()
                 friends[userId] = nil
                 saveConfig()
-                if espEnabled then updateESP() end
+                if espEnabled then updateESPPlayers() end
                 updateFunctions()
             end)
         end
@@ -2134,21 +2272,15 @@ function updateFunctions()
 
         tpSearchInput:GetPropertyChangedSignal("Text"):Connect(function()
             local query = tpSearchInput.Text:lower()
-            if query == "" then
-                tpSearchResults.Visible = false
-                return
-            end
+            if query == "" then tpSearchResults.Visible = false return end
             
-            for _, child in ipairs(tpSearchResults:GetChildren()) do
-                if child:IsA("TextButton") then child:Destroy() end
-            end
+            for _, child in ipairs(tpSearchResults:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
             
             local found = 0
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= player then
                     local name = p.Name:lower()
                     local displayName = p.DisplayName:lower()
-                    
                     if name:find(query) or displayName:find(query) then
                         local resultBtn = Instance.new("TextButton")
                         resultBtn.Size = UDim2.new(1, -10, 0, 35)
@@ -2190,12 +2322,10 @@ function updateFunctions()
                             tpSearchInput.Text = ""
                             tpSearchResults.Visible = false
                         end)
-                        
                         found = found + 1
                     end
                 end
             end
-            
             tpSearchResults.Visible = found > 0
         end)
 
@@ -2219,11 +2349,7 @@ function updateFunctions()
         local selectedPoint = nil
 
         local function updatePointsList()
-            for _, child in pairs(pointsList:GetChildren()) do
-                if child:IsA("TextButton") then
-                    child:Destroy()
-                end
-            end
+            for _, child in pairs(pointsList:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
 
             if #teleportPoints == 0 then
                 local emptyLabel = Instance.new("TextLabel")
@@ -2340,17 +2466,8 @@ function updateFunctions()
             if character and character:FindFirstChild("HumanoidRootPart") then
                 local pos = character.HumanoidRootPart.Position
                 local name = pointNameInput.Text
-                if name == "" then
-                    name = "Точка #" .. (#teleportPoints + 1)
-                end
-
-                table.insert(teleportPoints, {
-                    name = name,
-                    x = pos.X,
-                    y = pos.Y,
-                    z = pos.Z
-                })
-
+                if name == "" then name = "Точка #" .. (#teleportPoints + 1) end
+                table.insert(teleportPoints, {name = name, x = pos.X, y = pos.Y, z = pos.Z})
                 saveConfig()
                 updatePointsList()
                 pointNameInput.Text = ""
@@ -2360,38 +2477,10 @@ function updateFunctions()
         updatePointsList()
         
     elseif currentModule == "THEME" then
-        createSlider("Прозрачность окна", 0, 0.9, function() return mainTransparency end, function(v) 
-            mainTransparency = v
-            main.BackgroundTransparency = v
-            saveConfig()
-        end, "")
-        
-        createSlider("Прозрачность панелей", 0, 0.5, function() return panelTransparency end, function(v) 
-            panelTransparency = v
-            modulesPanel.BackgroundTransparency = v
-            functionsPanel.BackgroundTransparency = v
-            saveConfig()
-        end, "")
-        
-        createSlider("Прозрачность кнопок", 0, 0.5, function() return buttonTransparency end, function(v) 
-            buttonTransparency = v
-            for _, child in ipairs(modulesScrolling:GetChildren()) do
-                if child:IsA("TextButton") then
-                    child.BackgroundTransparency = v
-                end
-            end
-            saveConfig()
-        end, "")
-        
-        createSlider("Размер GUI", minSize, maxSize, function() return guiSize end, function(v) 
-            guiSize = v 
-            main.Size = UDim2.new(0, 1000 * guiSize, 0, 700 * guiSize)
-            main.Position = UDim2.new(0.5, -500 * guiSize, 0.5, -350 * guiSize)
-            modulesPanel.Size = UDim2.new(0, 220 * guiSize, 1, -50)
-            functionsPanel.Size = UDim2.new(1, -240 * guiSize, 1, -50)
-            functionsPanel.Position = UDim2.new(0, 235 * guiSize, 0, 50)
-            saveConfig()
-        end, "x")
+        createSlider("Прозрачность окна", 0, 0.9, function() return mainTransparency end, function(v) mainTransparency = v main.BackgroundTransparency = v saveConfig() end, "")
+        createSlider("Прозрачность панелей", 0, 0.5, function() return panelTransparency end, function(v) panelTransparency = v modulesPanel.BackgroundTransparency = v functionsPanel.BackgroundTransparency = v saveConfig() end, "")
+        createSlider("Прозрачность кнопок", 0, 0.5, function() return buttonTransparency end, function(v) buttonTransparency = v for _, child in ipairs(modulesScrolling:GetChildren()) do if child:IsA("TextButton") then child.BackgroundTransparency = v end end saveConfig() end, "")
+        createSlider("Размер GUI", minSize, maxSize, function() return guiSize end, function(v) guiSize = v main.Size = UDim2.new(0, 1000 * guiSize, 0, 700 * guiSize) main.Position = UDim2.new(0.5, -500 * guiSize, 0.5, -350 * guiSize) modulesPanel.Size = UDim2.new(0, 220 * guiSize, 1, -50) functionsPanel.Size = UDim2.new(1, -240 * guiSize, 1, -50) functionsPanel.Position = UDim2.new(0, 235 * guiSize, 0, 50) saveConfig() end, "x")
         
         local themeNote = Instance.new("TextLabel")
         themeNote.Size = UDim2.new(1, -20, 0, 30)
@@ -2422,21 +2511,14 @@ function updateFunctions()
             themeCorner.Parent = themeBtn
             
             themeBtn.MouseButton1Click:Connect(function()
-                for k, v in pairs(themeColors) do
-                    colors[k] = v
-                end
-                
+                for k, v in pairs(themeColors) do colors[k] = v end
                 modulesPanel.BackgroundColor3 = colors.panel
                 functionsPanel.BackgroundColor3 = colors.panel
                 island.BackgroundColor3 = colors.panel
                 modulesTitle.TextColor3 = colors.accentLight
                 functionsTitle.TextColor3 = colors.accentLight
                 islandStroke.Color = colors.accentLight
-                
-                if particlesEnabled and #particles > 0 then
-                    updateParticleColor()
-                end
-                
+                if particlesEnabled and #particles > 0 then updateParticleColor() end
                 for _, child in ipairs(modulesScrolling:GetChildren()) do
                     if child:IsA("TextButton") then
                         if child.TextLabel.Text == currentModule then
@@ -2449,7 +2531,6 @@ function updateFunctions()
                         child.Frame.BackgroundColor3 = colors.textDim
                     end
                 end
-                
                 saveConfig()
                 updateFunctions()
             end)
@@ -2471,21 +2552,14 @@ function updateFunctions()
         resetCorner.Parent = resetBtn
         
         resetBtn.MouseButton1Click:Connect(function()
-            for k, v in pairs(defaultColors) do
-                colors[k] = v
-            end
-            
+            for k, v in pairs(defaultColors) do colors[k] = v end
             modulesPanel.BackgroundColor3 = colors.panel
             functionsPanel.BackgroundColor3 = colors.panel
             island.BackgroundColor3 = colors.panel
             modulesTitle.TextColor3 = colors.accentLight
             functionsTitle.TextColor3 = colors.accentLight
             islandStroke.Color = colors.accentLight
-            
-            if particlesEnabled and #particles > 0 then
-                updateParticleColor()
-            end
-            
+            if particlesEnabled and #particles > 0 then updateParticleColor() end
             for _, child in ipairs(modulesScrolling:GetChildren()) do
                 if child:IsA("TextButton") then
                     if child.TextLabel.Text == currentModule then
@@ -2498,7 +2572,6 @@ function updateFunctions()
                     child.Frame.BackgroundColor3 = colors.textDim
                 end
             end
-            
             saveConfig()
             updateFunctions()
         end)
@@ -2586,43 +2659,110 @@ function updateFunctions()
             adminTitle.ZIndex = 1006
             adminTitle.Parent = functionsScrolling
 
-            createBindButton("KILL ALL", function() return killAllEnabled end, function(v) 
-                killAllEnabled = v
-                if killAllEnabled then
-                    doKillAllLoop()
-                else
-                    if killAllConnection then
-                        killAllConnection:Disconnect()
-                        killAllConnection = nil
-                    end
-                    killAllTarget = nil
-                end
-            end, "KillAll")
+            -- Поле для ввода ника
+            local followInput = Instance.new("TextBox")
+            followInput.Size = UDim2.new(1, -20, 0, 40)
+            followInput.Position = UDim2.new(0, 10, 0, 35)
+            followInput.BackgroundColor3 = colors.panelLight
+            followInput.BackgroundTransparency = buttonTransparency
+            followInput.PlaceholderText = "Введите ник игрока..."
+            followInput.PlaceholderColor3 = colors.textDim
+            followInput.Text = ""
+            followInput.TextColor3 = colors.text
+            followInput.TextSize = 14
+            followInput.Font = Enum.Font.Gotham
+            followInput.ClearTextOnFocus = true
+            followInput.ZIndex = 1006
+            followInput.Parent = functionsScrolling
 
-            createBindButton("РЕЖИМ УХОДА (отход при TEST)", function() return escapeEnabled end, function(v) 
-                escapeEnabled = v
-                if escapeEnabled and testEnabled then
-                    doEscapeLoop()
-                else
-                    if escapeConnection then
-                        escapeConnection:Disconnect()
-                        escapeConnection = nil
-                    end
-                end
-            end, "Escape")
+            local followInputCorner = Instance.new("UICorner")
+            followInputCorner.CornerRadius = UDim.new(0, 8)
+            followInputCorner.Parent = followInput
             
+            -- Подсказка
+            local followHint = Instance.new("TextLabel")
+            followHint.Size = UDim2.new(1, -20, 0, 20)
+            followHint.Position = UDim2.new(0, 10, 0, 78)
+            followHint.BackgroundTransparency = 1
+            followHint.Text = "💡 Введи ник или часть ника"
+            followHint.TextColor3 = colors.textDim
+            followHint.TextSize = 10
+            followHint.Font = Enum.Font.Gotham
+            followHint.TextXAlignment = Enum.TextXAlignment.Left
+            followHint.ZIndex = 1006
+            followHint.Parent = functionsScrolling
+
+            -- Кнопка
+            local followBtn = Instance.new("TextButton")
+            followBtn.Size = UDim2.new(1, -20, 0, 45)
+            followBtn.Position = UDim2.new(0, 10, 0, 100)
+            followBtn.BackgroundColor3 = colors.admin
+            followBtn.BackgroundTransparency = buttonTransparency
+            followBtn.Text = "🛡️ БЕССМЕРТИЕ + СЛЕЖЕНИЕ"
+            followBtn.TextColor3 = Color3.new(1, 1, 1)
+            followBtn.TextSize = 12
+            followBtn.Font = Enum.Font.GothamBold
+            followBtn.ZIndex = 1006
+            followBtn.Parent = functionsScrolling
+
+            local followBtnCorner = Instance.new("UICorner")
+            followBtnCorner.CornerRadius = UDim.new(0, 8)
+            followBtnCorner.Parent = followBtn
+
+            local followStatus = Instance.new("TextLabel")
+            followStatus.Size = UDim2.new(1, -20, 0, 25)
+            followStatus.Position = UDim2.new(0, 10, 0, 150)
+            followStatus.BackgroundTransparency = 1
+            followStatus.Text = "⚪ Выключено"
+            followStatus.TextColor3 = colors.textDim
+            followStatus.TextSize = 12
+            followStatus.Font = Enum.Font.Gotham
+            followStatus.ZIndex = 1006
+            followStatus.Parent = functionsScrolling
+
+            followBtn.MouseButton1Click:Connect(function()
+                followEnabled = not followEnabled
+                
+                if followEnabled then
+                    local targetName = followInput.Text
+                    if targetName ~= "" then
+                        local found = findPlayerByName(targetName)
+                        if found then
+                            followTarget = targetName
+                            followStatus.Text = "🟢 Слежение за: " .. found.Name
+                            followStatus.TextColor3 = colors.toggleOn
+                            followBtn.BackgroundColor3 = colors.accent
+                            doFollowLoop()
+                        else
+                            followStatus.Text = "❌ Игрок не найден!"
+                            followStatus.TextColor3 = colors.danger
+                            followEnabled = false
+                            followTarget = nil
+                        end
+                    else
+                        followTarget = nil
+                        followStatus.Text = "🟢 Слежение за ближайшим"
+                        followStatus.TextColor3 = colors.toggleOn
+                        followBtn.BackgroundColor3 = colors.accent
+                        doFollowLoop()
+                    end
+                else
+                    stopFollow()
+                    followStatus.Text = "⚪ Выключено"
+                    followStatus.TextColor3 = colors.textDim
+                    followBtn.BackgroundColor3 = colors.admin
+                    followInput.Text = ""
+                end
+            end)
+
+            createSlider("Дистанция слежения", 30, 150, function() return followDistance end, function(v) followDistance = v end, " стд")
+
+            createBindButton("KILL ALL", function() return killAllEnabled end, function(v) killAllEnabled = v if killAllEnabled then doKillAllLoop() else if killAllConnection then killAllConnection:Disconnect() killAllConnection = nil end killAllTarget = nil end end, "KillAll")
+            createBindButton("РЕЖИМ УХОДА (отход при TEST)", function() return escapeEnabled end, function(v) escapeEnabled = v if escapeEnabled and testEnabled then doEscapeLoop() else if escapeConnection then escapeConnection:Disconnect() escapeConnection = nil end end end, "Escape")
             createSlider("Дистанция ухода", 5, 30, function() return escapeDistance end, function(v) escapeDistance = v end, "")
-
-            createBindButton("Turbo Fly", function() return turboFlyEnabled end, function(v) 
-                turboFlyEnabled = v 
-                updateFly()
-            end, "TurboFly")
+            createBindButton("Turbo Fly", function() return turboFlyEnabled end, function(v) turboFlyEnabled = v updateFly() end, "TurboFly")
             createSlider("Турбо скорость", 100, 500, function() return turboFlySpeed end, function(v) turboFlySpeed = v end, "")
-
-            createBindButton("Invisible", function() return invisibleEnabled end, function(v) 
-                invisibleEnabled = v 
-                updateInvisibility()
-            end, "Invisible")
+            createBindButton("Invisible", function() return invisibleEnabled end, function(v) invisibleEnabled = v updateInvisibility() end, "Invisible")
         end
     end
 end
@@ -2643,20 +2783,8 @@ end)
 
 UIS.InputBegan:Connect(function(input, gp)
     if gp then return end
-    
-    if input.KeyCode == Enum.KeyCode.F8 then
-        unhook()
-        return
-    end
-    
-    if input.KeyCode == Enum.KeyCode.M then
-        main.Visible = not main.Visible
-    end
-    
-    if input.KeyCode == Enum.KeyCode.Insert then
-        main.Visible = not main.Visible
-    end
+    if input.KeyCode == Enum.KeyCode.F8 then unhook() return end
+    if input.KeyCode == Enum.KeyCode.M then main.Visible = not main.Visible end
+    if input.KeyCode == Enum.KeyCode.Insert then main.Visible = not main.Visible end
 end)
 
-print("✅ Nez0x UI - ПОЛНАЯ ВЕРСИЯ")
-print("📌 Цвет частиц синхронизирован с темой")
