@@ -739,7 +739,7 @@ local function doEscapeLoop()
     end)
 end
 
--- ===== ФУНКЦИЯ БЕССМЕРТИЕ + СЛЕЖЕНИЕ (ИСПРАВЛЕНО - ТЕПЕРЬ ЗА ИГРОКОМ) =====
+-- ===== ФУНКЦИЯ БЕССМЕРТИЕ + СЛЕЖЕНИЕ (как трах-трах, но только на дальней позиции) =====
 local followConnection = nil
 local followTarget = nil
 local followEnabled = false
@@ -783,7 +783,7 @@ local function findPlayerByName(searchName)
     return nil
 end
 
--- Функция слежения (СЛЕДУЕТ ЗА ИГРОКОМ, а не телепортирует в него)
+-- Функция слежения (КАК ТРАХ-ТРАХ, но всегда на дальней позиции)
 local function doFollowLoop()
     if followConnection then followConnection:Disconnect() end
     
@@ -818,18 +818,10 @@ local function doFollowLoop()
         
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
             local targetPos = target.Character.HumanoidRootPart.Position
-            local direction = (targetPos - hrp.Position).Unit
-            local dist = (hrp.Position - targetPos).Magnitude
+            local lookVector = target.Character.HumanoidRootPart.CFrame.LookVector
             
-            -- Движение к цели (а не телепортация)
-            if dist > followDistance then
-                -- Если далеко - бежим к цели
-                hrp.Velocity = direction * 100
-            else
-                -- Если в зоне - держимся на дистанции
-                local moveDir = (targetPos - hrp.Position).Unit
-                hrp.Velocity = moveDir * 50
-            end
+            -- КАК В ТРАХ-ТРАХ: всегда на дальней позиции (сзади на расстоянии followDistance)
+            hrp.CFrame = CFrame.new(targetPos - lookVector * followDistance, targetPos)
             
             -- БЕССМЕРТИЕ
             local hum = player.Character:FindFirstChildOfClass("Humanoid")
@@ -837,6 +829,7 @@ local function doFollowLoop()
                 if hum.Health < hum.MaxHealth then
                     hum.Health = hum.MaxHealth
                 end
+                hum.PlatformStand = true
             end
             
             -- Золотое свечение
@@ -860,7 +853,6 @@ local function stopFollow()
         followConnection = nil
     end
     if player.Character then
-        -- Возвращаем нормальный вид
         for _, part in ipairs(player.Character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.Material = Enum.Material.Plastic
@@ -2788,3 +2780,4 @@ UIS.InputBegan:Connect(function(input, gp)
     if input.KeyCode == Enum.KeyCode.Insert then main.Visible = not main.Visible end
 end)
 
+print("✅ Nez0x UI - ПОЛНАЯ ВЕРСИЯ")
