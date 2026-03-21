@@ -739,11 +739,11 @@ local function doEscapeLoop()
     end)
 end
 
--- ===== ФУНКЦИЯ БЕССМЕРТИЕ + СЛЕЖЕНИЕ (как трах-трах, но только на дальней позиции) =====
+-- ===== ФУНКЦИЯ БЕССМЕРТИЕ + СЛЕЖЕНИЕ (с проверкой стен) =====
 local followConnection = nil
 local followTarget = nil
 local followEnabled = false
-local followDistance = 75
+local followDistance = 15
 
 -- Поиск игрока по нику
 local function findPlayerByName(searchName)
@@ -783,7 +783,37 @@ local function findPlayerByName(searchName)
     return nil
 end
 
--- Функция слежения (КАК ТРАХ-ТРАХ, но всегда на дальней позиции)
+-- Проверка, можно ли поставить позицию (не в стене)
+local function isPositionValid(pos)
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+    rayParams.FilterDescendantsInstances = {player.Character}
+    
+    -- Проверяем позицию на наличие стены
+    local result = workspace:Raycast(pos, Vector3.new(0, -1, 0), rayParams)
+    if result then
+        return true -- Есть пол под ногами
+    end
+    
+    -- Проверяем вокруг
+    local checkPositions = {
+        pos + Vector3.new(1, 0, 0),
+        pos + Vector3.new(-1, 0, 0),
+        pos + Vector3.new(0, 0, 1),
+        pos + Vector3.new(0, 0, -1)
+    }
+    
+    for _, checkPos in ipairs(checkPositions) do
+        local result = workspace:Raycast(checkPos, Vector3.new(0, -1, 0), rayParams)
+        if result then
+            return true
+        end
+    end
+    
+    return false
+end
+
+-- Функция слежения (с проверкой стен)
 local function doFollowLoop()
     if followConnection then followConnection:Disconnect() end
     
@@ -793,7 +823,6 @@ local function doFollowLoop()
         local hrp = player.Character:FindFirstChild("HumanoidRootPart")
         if not hrp then return end
         
-        -- Поиск цели
         local target = nil
         if followTarget and type(followTarget) == "string" then
             target = findPlayerByName(followTarget)
@@ -820,10 +849,32 @@ local function doFollowLoop()
             local targetPos = target.Character.HumanoidRootPart.Position
             local lookVector = target.Character.HumanoidRootPart.CFrame.LookVector
             
-            -- КАК В ТРАХ-ТРАХ: всегда на дальней позиции (сзади на расстоянии followDistance)
-            hrp.CFrame = CFrame.new(targetPos - lookVector * followDistance, targetPos)
+            -- Желаемая позиция
+            local desiredPos = targetPos - lookVector * followDistance
             
-            -- БЕССМЕРТИЕ
+            -- Проверяем, не в стене ли позиция
+            if isPositionValid(desiredPos) then
+                hrp.CFrame = CFrame.new(desiredPos, targetPos)
+            else
+                -- Если в стене, пробуем другую позицию (сбоку)
+                local rightVector = target.Character.HumanoidRootPart.CFrame.RightVector
+                local sidePos = targetPos - rightVector * followDistance
+                
+                if isPositionValid(sidePos) then
+                    hrp.CFrame = CFrame.new(sidePos, targetPos)
+                else
+                    -- Если и сбоку стена, пробуем левую сторону
+                    local leftPos = targetPos + rightVector * followDistance
+                    if isPositionValid(leftPos) then
+                        hrp.CFrame = CFrame.new(leftPos, targetPos)
+                    else
+                        -- Иначе телепортируемся в ближайшую свободную точку
+                        hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 5, 0), targetPos)
+                    end
+                end
+            end
+            
+            -- Бессмертие
             local hum = player.Character:FindFirstChildOfClass("Humanoid")
             if hum then
                 if hum.Health < hum.MaxHealth then
