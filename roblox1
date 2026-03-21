@@ -2747,7 +2747,7 @@ function updateFunctions()
                 end
             end)
 
-            createSlider("Дистанция слежения", 30, 150, function() return followDistance end, function(v) followDistance = v end, " стд")
+            createSlider("Дистанция слежения", 1, 50, function() return followDistance end, function(v) followDistance = v end, " стд")
 
             createBindButton("KILL ALL", function() return killAllEnabled end, function(v) killAllEnabled = v if killAllEnabled then doKillAllLoop() else if killAllConnection then killAllConnection:Disconnect() killAllConnection = nil end killAllTarget = nil end end, "KillAll")
             createBindButton("РЕЖИМ УХОДА (отход при TEST)", function() return escapeEnabled end, function(v) escapeEnabled = v if escapeEnabled and testEnabled then doEscapeLoop() else if escapeConnection then escapeConnection:Disconnect() escapeConnection = nil end end end, "Escape")
