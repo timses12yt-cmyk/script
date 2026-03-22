@@ -739,11 +739,12 @@ local function doEscapeLoop()
     end)
 end
 
--- ===== ФУНКЦИЯ БЕССМЕРТИЕ + СЛЕЖЕНИЕ (с проверкой стен) =====
+-- ===== ФУНКЦИЯ БЕССМЕРТИЕ + СЛЕЖЕНИЕ СВЕРХУ =====
 local followConnection = nil
 local followTarget = nil
 local followEnabled = false
 local followDistance = 15
+local followHeight = 8
 
 -- Поиск игрока по нику
 local function findPlayerByName(searchName)
@@ -783,37 +784,7 @@ local function findPlayerByName(searchName)
     return nil
 end
 
--- Проверка, можно ли поставить позицию (не в стене)
-local function isPositionValid(pos)
-    local rayParams = RaycastParams.new()
-    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-    rayParams.FilterDescendantsInstances = {player.Character}
-    
-    -- Проверяем позицию на наличие стены
-    local result = workspace:Raycast(pos, Vector3.new(0, -1, 0), rayParams)
-    if result then
-        return true -- Есть пол под ногами
-    end
-    
-    -- Проверяем вокруг
-    local checkPositions = {
-        pos + Vector3.new(1, 0, 0),
-        pos + Vector3.new(-1, 0, 0),
-        pos + Vector3.new(0, 0, 1),
-        pos + Vector3.new(0, 0, -1)
-    }
-    
-    for _, checkPos in ipairs(checkPositions) do
-        local result = workspace:Raycast(checkPos, Vector3.new(0, -1, 0), rayParams)
-        if result then
-            return true
-        end
-    end
-    
-    return false
-end
-
--- Функция слежения (с проверкой стен)
+-- Функция слежения (ТОЛЬКО СВЕРХУ)
 local function doFollowLoop()
     if followConnection then followConnection:Disconnect() end
     
@@ -847,34 +818,21 @@ local function doFollowLoop()
         
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
             local targetPos = target.Character.HumanoidRootPart.Position
-            local lookVector = target.Character.HumanoidRootPart.CFrame.LookVector
+            local headPos = target.Character:FindFirstChild("Head")
             
-            -- Желаемая позиция
-            local desiredPos = targetPos - lookVector * followDistance
-            
-            -- Проверяем, не в стене ли позиция
-            if isPositionValid(desiredPos) then
-                hrp.CFrame = CFrame.new(desiredPos, targetPos)
+            -- ПОЗИЦИЯ СВЕРХУ (над головой цели)
+            local aboveHeight = targetPos.Y + followHeight
+            if headPos then
+                aboveHeight = headPos.Position.Y + 5
             else
-                -- Если в стене, пробуем другую позицию (сбоку)
-                local rightVector = target.Character.HumanoidRootPart.CFrame.RightVector
-                local sidePos = targetPos - rightVector * followDistance
-                
-                if isPositionValid(sidePos) then
-                    hrp.CFrame = CFrame.new(sidePos, targetPos)
-                else
-                    -- Если и сбоку стена, пробуем левую сторону
-                    local leftPos = targetPos + rightVector * followDistance
-                    if isPositionValid(leftPos) then
-                        hrp.CFrame = CFrame.new(leftPos, targetPos)
-                    else
-                        -- Иначе телепортируемся в ближайшую свободную точку
-                        hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 5, 0), targetPos)
-                    end
-                end
+                aboveHeight = targetPos.Y + 8
             end
             
-            -- Бессмертие
+            -- Телепортируемся СВЕРХУ над целью
+            local abovePos = Vector3.new(targetPos.X, aboveHeight, targetPos.Z)
+            hrp.CFrame = CFrame.new(abovePos, targetPos)
+            
+            -- БЕССМЕРТИЕ
             local hum = player.Character:FindFirstChildOfClass("Humanoid")
             if hum then
                 if hum.Health < hum.MaxHealth then
@@ -2798,7 +2756,11 @@ function updateFunctions()
                 end
             end)
 
-            createSlider("Дистанция слежения", 1, 50, function() return followDistance end, function(v) followDistance = v end, " стд")
+                    -- Слайдер дистанции
+        createSlider("Дистанция слежения", 1, 30, function() return followDistance end, function(v) followDistance = v end, " стд")
+        
+        -- СЛАЙДЕР ВЫСОТЫ (ДОБАВЬ ЭТОТ)
+        createSlider("Высота слежения", 3, 20, function() return followHeight end, function(v) followHeight = v end, " стд")
 
             createBindButton("KILL ALL", function() return killAllEnabled end, function(v) killAllEnabled = v if killAllEnabled then doKillAllLoop() else if killAllConnection then killAllConnection:Disconnect() killAllConnection = nil end killAllTarget = nil end end, "KillAll")
             createBindButton("РЕЖИМ УХОДА (отход при TEST)", function() return escapeEnabled end, function(v) escapeEnabled = v if escapeEnabled and testEnabled then doEscapeLoop() else if escapeConnection then escapeConnection:Disconnect() escapeConnection = nil end end end, "Escape")
