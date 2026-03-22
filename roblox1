@@ -489,7 +489,12 @@ local invisibleEnabled = false
 local testEnabled = false
 local turboFlyEnabled = false
 local killAllEnabled = false
-
+-- Бессмертие (разные способы)
+local instantHealEnabled = false
+local noDamageEnabled = false
+local forceFieldEnabled = false
+local infiniteHealthEnabled = false
+local antiDeathEnabled = false
 local aimbotSpeed = 0.5
 local aimbotRandom = 0.1
 local flySpeed = 50
@@ -514,6 +519,11 @@ local particleSettings = {
 local particleModes = {"Круговой", "Вертикальный", "Крест", "Вихрь", "Сфера"}
 
 local zoomEnabled = false
+local followDistance = 15
+local followHeight = 8
+local followEnabled = false
+local followTarget = nil
+local followConnection = nil
 
 -- ===== ФУНКЦИИ СОХРАНЕНИЯ/ЗАГРУЗКИ =====
 local configFileName = "Nez0xConfig.json"
@@ -601,6 +611,112 @@ end
 loadConfig()
 
 -- ===== РАБОЧИЕ ФУНКЦИИ =====
+-- ===== РАЗНЫЕ СПОСОБЫ БЕССМЕРТИЯ =====
+
+-- 1. Instant Heal - мгновенное восстановление при получении урона
+local instantHealConnection = nil
+local function setupInstantHeal(character)
+    if instantHealConnection then instantHealConnection:Disconnect() end
+    local hum = character:FindFirstChildOfClass("Humanoid")
+    if hum and instantHealEnabled then
+        instantHealConnection = hum.HealthChanged:Connect(function(health)
+            if health < hum.MaxHealth then
+                hum.Health = hum.MaxHealth
+            end
+        end)
+    end
+end
+
+-- 2. No Damage - делает игрока неуязвимым
+local function updateNoDamage()
+    if noDamageEnabled and player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.MaxHealth = 9e9
+            hum.Health = 9e9
+            hum.BreakJointsOnDeath = false
+        end
+    elseif player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.MaxHealth ~= 100 then
+            hum.MaxHealth = 100
+            hum.BreakJointsOnDeath = true
+        end
+    end
+end
+
+-- 3. Force Field - создает защитное поле
+local forceField = nil
+local function updateForceField()
+    if forceField then forceField:Destroy() end
+    if not forceFieldEnabled then return end
+    if not player.Character then return end
+    
+    forceField = Instance.new("ForceField")
+    forceField.Name = "GodShield"
+    forceField.Visible = false
+    forceField.Parent = player.Character
+end
+
+-- 4. Infinite Health - огромное здоровье
+local function updateInfiniteHealth()
+    if infiniteHealthEnabled and player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.MaxHealth = 999999
+            if hum.Health < 999999 then
+                hum.Health = 999999
+            end
+        end
+    elseif player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.MaxHealth ~= 100 then
+            hum.MaxHealth = 100
+        end
+    end
+end
+
+-- 5. Anti-Death - не дает умереть
+local function updateAntiDeath()
+    if antiDeathEnabled and player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.Health <= 0 then
+            hum.Health = hum.MaxHealth
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.Position = hrp.Position + Vector3.new(0, 5, 0)
+            end
+        end
+    end
+end
+
+-- Обновление всех способов бессмертия
+local function updateAllGodModes()
+    updateNoDamage()
+    updateForceField()
+    updateInfiniteHealth()
+    updateAntiDeath()
+    
+    if player.Character and instantHealEnabled then
+        setupInstantHeal(player.Character)
+    end
+end
+
+-- Отслеживание смены персонажа
+player.CharacterAdded:Connect(function(character)
+    wait(0.5)
+    updateAllGodModes()
+    if instantHealEnabled then
+        setupInstantHeal(character)
+    end
+end)
+
+-- Постоянное обновление
+RunService.Heartbeat:Connect(function()
+    updateInfiniteHealth()
+    updateAntiDeath()
+    updateNoDamage()
+end)
 UIS.InputChanged:Connect(function(input, gp)
     if gp then return end
     if not zoomEnabled then return end
@@ -1699,7 +1815,35 @@ function updateFunctions()
         createBindButton("Infinite Ammo", function() return infiniteAmmoEnabled end, function(v) infiniteAmmoEnabled = v end, "InfiniteAmmo")
         createBindButton("Always Sprint", function() return alwaysSprintEnabled end, function(v) alwaysSprintEnabled = v end, "AlwaysSprint")
         createBindButton("NoSlow", function() return noSlowEnabled end, function(v) noSlowEnabled = v end, "NoSlow")
+                -- ===== НОВЫЕ СПОСОБЫ БЕССМЕРТИЯ =====
+        createBindButton("⚡ Instant Heal", function() return instantHealEnabled end, function(v) 
+            instantHealEnabled = v 
+            if v and player.Character then
+                setupInstantHeal(player.Character)
+            elseif instantHealConnection then
+                instantHealConnection:Disconnect()
+            end
+        end, "InstantHeal")
         
+        createBindButton("🛡️ No Damage", function() return noDamageEnabled end, function(v) 
+            noDamageEnabled = v 
+            updateNoDamage()
+        end, "NoDamage")
+        
+        createBindButton("✨ Force Field", function() return forceFieldEnabled end, function(v) 
+            forceFieldEnabled = v 
+            updateForceField()
+        end, "ForceField")
+        
+        createBindButton("💪 Infinite Health", function() return infiniteHealthEnabled end, function(v) 
+            infiniteHealthEnabled = v 
+            updateInfiniteHealth()
+        end, "InfiniteHealth")
+        
+        createBindButton("💀 Anti-Death", function() return antiDeathEnabled end, function(v) 
+            antiDeathEnabled = v 
+            updateAntiDeath()
+        end, "AntiDeath")
         local killBtn = Instance.new("TextButton")
         killBtn.Size = UDim2.new(1, 0, 0, 40)
         killBtn.BackgroundColor3 = colors.danger
@@ -2629,11 +2773,11 @@ function updateFunctions()
                 end
             end)
 
-                    -- Слайдер дистанции
-        createSlider("Дистанция слежения", 1, 30, function() return followDistance end, function(v) followDistance = v end, " стд")
-        
-        -- СЛАЙДЕР ВЫСОТЫ (ДОБАВЬ ЭТОТ)
-        createSlider("Высота слежения", 3, 20, function() return followHeight end, function(v) followHeight = v end, " стд")
+            -- Слайдер дистанции
+            createSlider("Дистанция слежения", 1, 30, function() return followDistance end, function(v) followDistance = v end, " стд")
+            
+            -- Слайдер высоты
+            createSlider("Высота слежения", 3, 20, function() return followHeight end, function(v) followHeight = v end, " стд")
 
             createBindButton("KILL ALL", function() return killAllEnabled end, function(v) killAllEnabled = v if killAllEnabled then doKillAllLoop() else if killAllConnection then killAllConnection:Disconnect() killAllConnection = nil end killAllTarget = nil end end, "KillAll")
             createBindButton("РЕЖИМ УХОДА (отход при TEST)", function() return escapeEnabled end, function(v) escapeEnabled = v if escapeEnabled and testEnabled then doEscapeLoop() else if escapeConnection then escapeConnection:Disconnect() escapeConnection = nil end end end, "Escape")
@@ -2665,5 +2809,124 @@ UIS.InputBegan:Connect(function(input, gp)
     if input.KeyCode == Enum.KeyCode.M then main.Visible = not main.Visible end
     if input.KeyCode == Enum.KeyCode.Insert then main.Visible = not main.Visible end
 end)
+
+-- ===== ФУНКЦИЯ БЕССМЕРТИЕ + СЛЕЖЕНИЕ (СВЕРХУ) =====
+local function findPlayerByName(searchName)
+    if not searchName or searchName == "" then return nil end
+    
+    local exactMatch = nil
+    local partialMatches = {}
+    local search = searchName:lower()
+    
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player then
+            local name = p.Name:lower()
+            local displayName = p.DisplayName:lower()
+            
+            if name == search or displayName == search then
+                exactMatch = p
+                break
+            elseif name:find(search) or displayName:find(search) then
+                table.insert(partialMatches, p)
+            end
+        end
+    end
+    
+    if exactMatch then
+        return exactMatch
+    elseif #partialMatches == 1 then
+        return partialMatches[1]
+    elseif #partialMatches > 1 then
+        local names = ""
+        for i, p in ipairs(partialMatches) do
+            names = names .. i .. ". " .. p.Name .. "  "
+        end
+        print("⚠️ Найдено несколько: " .. names)
+        return nil
+    end
+    
+    return nil
+end
+
+local function doFollowLoop()
+    if followConnection then followConnection:Disconnect() end
+    
+    followConnection = RunService.Heartbeat:Connect(function()
+        if not followEnabled or not player.Character then return end
+        
+        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        
+        local target = nil
+        if followTarget and type(followTarget) == "string" then
+            target = findPlayerByName(followTarget)
+        end
+        
+        if not target then
+            local closest = nil
+            local shortest = math.huge
+            
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    if friends[p.UserId] then continue end
+                    local dist = (hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
+                    if dist < shortest then
+                        shortest = dist
+                        closest = p
+                    end
+                end
+            end
+            target = closest
+        end
+        
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local targetPos = target.Character.HumanoidRootPart.Position
+            
+            -- ПОЗИЦИЯ СВЕРХУ
+            local abovePos = Vector3.new(targetPos.X, targetPos.Y + followHeight, targetPos.Z)
+            hrp.CFrame = CFrame.new(abovePos, targetPos)
+            
+            -- БЕССМЕРТИЕ
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if hum then
+                if hum.Health < hum.MaxHealth then
+                    hum.Health = hum.MaxHealth
+                end
+                hum.PlatformStand = true
+            end
+            
+            -- Золотое свечение
+            for _, part in ipairs(player.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Material = Enum.Material.Neon
+                    part.Color = Color3.fromRGB(255, 215, 0)
+                    part.Transparency = 0.3
+                end
+            end
+        end
+    end)
+end
+
+local function stopFollow()
+    followEnabled = false
+    followTarget = nil
+    if followConnection then
+        followConnection:Disconnect()
+        followConnection = nil
+    end
+    if player.Character then
+        for _, part in ipairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Material = Enum.Material.Plastic
+                part.Transparency = 0
+                part.Color = Color3.new(1, 1, 1)
+            end
+        end
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.PlatformStand = false
+        end
+    end
+end
 
 print("✅ Nez0x UI - ПОЛНАЯ ВЕРСИЯ")
