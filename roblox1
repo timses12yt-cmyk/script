@@ -739,142 +739,15 @@ local function doEscapeLoop()
     end)
 end
 
--- ===== ФУНКЦИЯ БЕССМЕРТИЕ + СЛЕЖЕНИЕ СВЕРХУ =====
-local followConnection = nil
-local followTarget = nil
-local followEnabled = false
-local followDistance = 15
-local followHeight = 8
-
--- Поиск игрока по нику
-local function findPlayerByName(searchName)
-    if not searchName or searchName == "" then return nil end
-    
-    local exactMatch = nil
-    local partialMatches = {}
-    local search = searchName:lower()
-    
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player then
-            local name = p.Name:lower()
-            local displayName = p.DisplayName:lower()
-            
-            if name == search or displayName == search then
-                exactMatch = p
-                break
-            elseif name:find(search) or displayName:find(search) then
-                table.insert(partialMatches, p)
-            end
-        end
-    end
-    
-    if exactMatch then
-        return exactMatch
-    elseif #partialMatches == 1 then
-        return partialMatches[1]
-    elseif #partialMatches > 1 then
-        local names = ""
-        for i, p in ipairs(partialMatches) do
-            names = names .. i .. ". " .. p.Name .. "  "
-        end
-        print("⚠️ Найдено несколько: " .. names)
-        return nil
-    end
-    
-    return nil
-end
-
--- Функция слежения (ТОЛЬКО СВЕРХУ)
-local function doFollowLoop()
-    if followConnection then followConnection:Disconnect() end
-    
-    followConnection = RunService.Heartbeat:Connect(function()
-        if not followEnabled or not player.Character then return end
-        
-        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-        
-        local target = nil
-        if followTarget and type(followTarget) == "string" then
-            target = findPlayerByName(followTarget)
-        end
-        
-        if not target then
-            local closest = nil
-            local shortest = math.huge
-            
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                    if friends[p.UserId] then continue end
-                    local dist = (hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
-                    if dist < shortest then
-                        shortest = dist
-                        closest = p
-                    end
-                end
-            end
-            target = closest
-        end
-        
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local targetPos = target.Character.HumanoidRootPart.Position
-            local headPos = target.Character:FindFirstChild("Head")
-            
-            -- ПОЗИЦИЯ СВЕРХУ (над головой цели)
-            local aboveHeight = targetPos.Y + followHeight
-            if headPos then
-                aboveHeight = headPos.Position.Y + 5
-            else
-                aboveHeight = targetPos.Y + 8
-            end
-            
-            -- Телепортируемся СВЕРХУ над целью
-            local abovePos = Vector3.new(targetPos.X, aboveHeight, targetPos.Z)
-            hrp.CFrame = CFrame.new(abovePos, targetPos)
-            
-            -- БЕССМЕРТИЕ
-            local hum = player.Character:FindFirstChildOfClass("Humanoid")
-            if hum then
-                if hum.Health < hum.MaxHealth then
-                    hum.Health = hum.MaxHealth
-                end
-                hum.PlatformStand = true
-            end
-            
-            -- Золотое свечение
-            for _, part in ipairs(player.Character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Material = Enum.Material.Neon
-                    part.Color = Color3.fromRGB(255, 215, 0)
-                    part.Transparency = 0.3
-                end
-            end
-        end
-    end)
-end
-
--- Остановка слежения
-local function stopFollow()
-    followEnabled = false
-    followTarget = nil
-    if followConnection then
-        followConnection:Disconnect()
-        followConnection = nil
-    end
-    if player.Character then
-        for _, part in ipairs(player.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.Material = Enum.Material.Plastic
-                part.Transparency = 0
-                part.Color = Color3.new(1, 1, 1)
-            end
-        end
+-- Просто бессмертие (без телепортации)
+RunService.Heartbeat:Connect(function()
+    if godModeEnabled and player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.PlatformStand = false
+        if hum and hum.Health < hum.MaxHealth then
+            hum.Health = hum.MaxHealth
         end
     end
-end
+end)
 
 local function updateInvisibility()
     if not player.Character then return end
