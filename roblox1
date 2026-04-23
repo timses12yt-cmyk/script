@@ -965,7 +965,7 @@ launcherDescription = Instance.new("TextLabel")
 launcherDescription.BackgroundTransparency = 1
 launcherDescription.Position = UDim2.new(0, 26, 0, 60)
 launcherDescription.Size = UDim2.new(1, -52, 0, 66)
-launcherDescription.Text = "Основной GUI откроет все модули Nez0x, темы, HUD, ESP и конфиги. Ключ премиум включает premium-режим и открывает admin-функции внутри обычных модулей."
+launcherDescription.Text = "Основной GUI откроет все модули Nez0x, темы, HUD, ESP и конфиги. Ключ включает premium-режим и открывает admin-функции внутри обычных модулей."
 launcherDescription.TextColor3 = colors.textDim
 launcherDescription.TextSize = 14
 launcherDescription.Font = Enum.Font.Gotham
@@ -2197,9 +2197,57 @@ local function applyNursultanChrome()
             inlineRefreshers[control] = nil
         end
     end
+
+    if type(refreshUtilityModalStyles) == "function" then
+        refreshUtilityModalStyles()
+    end
 end
 
 -- ===== ФУНКЦИИ СОХРАНЕНИЯ/ЗАГРУЗКИ =====
+utilityModalShade = nil
+friendsModal = nil
+teleportModal = nil
+friendsModalSearchBox = nil
+friendsModalSearchResults = nil
+friendsModalFriendsList = nil
+teleportModalPointNameBox = nil
+teleportModalPlayerSearchBox = nil
+teleportModalPlayerResults = nil
+teleportModalPointsList = nil
+teleportModalPositionLabel = nil
+teleportModalPositionConnection = nil
+
+function refreshUtilityModalStyles()
+    if not utilityModalShade then
+        return
+    end
+
+    utilityModalShade.BackgroundColor3 = Color3.fromRGB(4, 6, 14)
+    utilityModalShade.BackgroundTransparency = 0.32
+
+    for _, modal in ipairs({friendsModal, teleportModal}) do
+        if modal then
+            modal.BackgroundColor3 = colors.panel
+            modal.BackgroundTransparency = 0.04
+            ensureCorner(modal, 18)
+            ensureStroke(modal, "ModalStroke", colors.panelLight, 1, 0.14)
+            ensureGradient(modal, "ModalGradient", colors.panel, colors.background, 90)
+
+            for _, descendant in ipairs(modal:GetDescendants()) do
+                if descendant:IsA("TextButton") then
+                    styleActionButton(descendant)
+                elseif descendant:IsA("TextBox") then
+                    styleInputBox(descendant)
+                elseif descendant:IsA("ScrollingFrame") then
+                    styleScrollFrame(descendant)
+                elseif descendant:IsA("TextLabel") then
+                    styleSectionLabel(descendant)
+                end
+            end
+        end
+    end
+end
+
 configRegistryFileName = "Nez0xConfigIndex.json"
 
 function getNormalizedConfigFileName(rawName)
@@ -3852,7 +3900,7 @@ espObjects = {}
 
 function getPlayerEspAccent(plr)
     if friends[plr.UserId] then
-        return colors.friend, Color3.fromRGB(64, 124, 255)
+        return Color3.fromRGB(118, 255, 138), Color3.fromRGB(36, 110, 56)
     end
     return colors.accentLight, colors.accent
 end
@@ -5134,6 +5182,40 @@ function populateModuleContents(moduleName, targetScrolling, appendMode)
         saveConfigBtn.MouseButton1Click:Connect(function() saveConfig() end)
         
     elseif currentModule == "FRIENDS" then
+        local friendNote = Instance.new("TextLabel")
+        friendNote.Size = UDim2.new(1, -20, 0, 56)
+        friendNote.BackgroundTransparency = 1
+        friendNote.Text = "Управление друзьями открывается в отдельном мини-окне. Там можно искать игроков, добавлять и удалять друзей."
+        friendNote.TextColor3 = colors.textDim
+        friendNote.TextSize = 13
+        friendNote.Font = Enum.Font.Gotham
+        friendNote.TextWrapped = true
+        friendNote.TextXAlignment = Enum.TextXAlignment.Left
+        friendNote.TextYAlignment = Enum.TextYAlignment.Top
+        friendNote.ZIndex = 1006
+        friendNote.Parent = functionsScrolling
+
+        local openFriendsBtn = Instance.new("TextButton")
+        openFriendsBtn.Size = UDim2.new(1, -8, 0, 38)
+        openFriendsBtn.BackgroundColor3 = colors.accent
+        openFriendsBtn.BackgroundTransparency = buttonTransparency
+        openFriendsBtn.BorderSizePixel = 0
+        openFriendsBtn.Text = "Open Friends Manager"
+        openFriendsBtn.TextColor3 = Color3.new(1, 1, 1)
+        openFriendsBtn.TextSize = 13
+        openFriendsBtn.Font = Enum.Font.GothamSemibold
+        openFriendsBtn.ZIndex = 1006
+        openFriendsBtn.Parent = functionsScrolling
+
+        openFriendsBtn.MouseButton1Click:Connect(function()
+            openUtilityModal("friends")
+        end)
+
+        currentModule = previousModule
+        functionsScrolling = previousScrolling
+        return
+--[[
+
         local searchInput = Instance.new("TextBox")
         searchInput.Size = UDim2.new(1, -20, 0, 40)
         searchInput.Position = UDim2.new(0, 10, 0, 0)
@@ -5333,7 +5415,42 @@ function populateModuleContents(moduleName, targetScrolling, appendMode)
             end)
         end
         
+]]
     elseif currentModule == "TELEPORT" then
+        local tpNote = Instance.new("TextLabel")
+        tpNote.Size = UDim2.new(1, -20, 0, 56)
+        tpNote.BackgroundTransparency = 1
+        tpNote.Text = "Точки телепорта и телепорт к игрокам открываются в отдельном мини-окне. Там можно сохранять и удалять точки."
+        tpNote.TextColor3 = colors.textDim
+        tpNote.TextSize = 13
+        tpNote.Font = Enum.Font.Gotham
+        tpNote.TextWrapped = true
+        tpNote.TextXAlignment = Enum.TextXAlignment.Left
+        tpNote.TextYAlignment = Enum.TextYAlignment.Top
+        tpNote.ZIndex = 1006
+        tpNote.Parent = functionsScrolling
+
+        local openTeleportBtn = Instance.new("TextButton")
+        openTeleportBtn.Size = UDim2.new(1, -8, 0, 38)
+        openTeleportBtn.BackgroundColor3 = colors.accent
+        openTeleportBtn.BackgroundTransparency = buttonTransparency
+        openTeleportBtn.BorderSizePixel = 0
+        openTeleportBtn.Text = "Open Teleport Manager"
+        openTeleportBtn.TextColor3 = Color3.new(1, 1, 1)
+        openTeleportBtn.TextSize = 13
+        openTeleportBtn.Font = Enum.Font.GothamSemibold
+        openTeleportBtn.ZIndex = 1006
+        openTeleportBtn.Parent = functionsScrolling
+
+        openTeleportBtn.MouseButton1Click:Connect(function()
+            openUtilityModal("teleport")
+        end)
+
+        currentModule = previousModule
+        functionsScrolling = previousScrolling
+        return
+--[[
+
         local tpNote = Instance.new("TextLabel")
         tpNote.Size = UDim2.new(1, -20, 0, 30)
         tpNote.Position = UDim2.new(0, 10, 0, 0)
@@ -5647,6 +5764,7 @@ function populateModuleContents(moduleName, targetScrolling, appendMode)
 
         updatePointsList()
         
+]]
     elseif currentModule == "THEME" then
         createSlider("Прозрачность окна", 0, 0.9, function() return mainTransparency end, function(v) mainTransparency = v main.BackgroundTransparency = v saveConfig() end, "")
         createSlider("Прозрачность панелей", 0, 0.5, function() return panelTransparency end, function(v) panelTransparency = v modulesPanel.BackgroundTransparency = v functionsPanel.BackgroundTransparency = v saveConfig() end, "")
@@ -5958,6 +6076,607 @@ function clearRenderContainer(container)
             child:Destroy()
         end
     end
+end
+
+function closeUtilityModal()
+    if friendsModal then
+        friendsModal.Visible = false
+    end
+    if teleportModal then
+        teleportModal.Visible = false
+    end
+end
+
+function refreshFriendsModalLists()
+    if not friendsModalSearchResults or not friendsModalFriendsList then
+        return
+    end
+
+    local query = friendsModalSearchBox and string.lower(friendsModalSearchBox.Text or "") or ""
+    clearRenderContainer(friendsModalSearchResults)
+    clearRenderContainer(friendsModalFriendsList)
+
+    local found = 0
+    if query ~= "" then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and not friends[p.UserId] then
+                local lowerName = string.lower(p.Name or "")
+                local lowerDisplay = string.lower(p.DisplayName or "")
+                if string.find(lowerName, query, 1, true) or string.find(lowerDisplay, query, 1, true) then
+                    found = found + 1
+                    local resultBtn = Instance.new("TextButton")
+                    resultBtn.Size = UDim2.new(1, -8, 0, 34)
+                    resultBtn.BackgroundColor3 = colors.panel
+                    resultBtn.BackgroundTransparency = buttonTransparency
+                    resultBtn.Text = p.Name .. " (" .. p.DisplayName .. ")"
+                    resultBtn.TextXAlignment = Enum.TextXAlignment.Left
+                    resultBtn.TextColor3 = colors.text
+                    resultBtn.TextSize = 12
+                    resultBtn.Font = Enum.Font.Gotham
+                    resultBtn.ZIndex = 2204
+                    resultBtn.Parent = friendsModalSearchResults
+
+                    local padding = Instance.new("UIPadding")
+                    padding.PaddingLeft = UDim.new(0, 12)
+                    padding.PaddingRight = UDim.new(0, 12)
+                    padding.Parent = resultBtn
+
+                    local addLabel = Instance.new("TextLabel")
+                    addLabel.BackgroundTransparency = 1
+                    addLabel.AnchorPoint = Vector2.new(1, 0.5)
+                    addLabel.Position = UDim2.new(1, -10, 0.5, 0)
+                    addLabel.Size = UDim2.new(0, 56, 0, 16)
+                    addLabel.Text = "ADD"
+                    addLabel.TextColor3 = Color3.fromRGB(118, 255, 138)
+                    addLabel.TextSize = 10
+                    addLabel.Font = Enum.Font.GothamBold
+                    addLabel.ZIndex = 2205
+                    addLabel.Parent = resultBtn
+
+                    resultBtn.MouseButton1Click:Connect(function()
+                        friends[p.UserId] = p.Name
+                        saveConfig()
+                        if espEnabled then
+                            updateESPPlayers()
+                        end
+                        if friendsModalSearchBox then
+                            friendsModalSearchBox.Text = ""
+                        end
+                        refreshFriendsModalLists()
+                        updateFunctions()
+                    end)
+                end
+            end
+        end
+    end
+    friendsModalSearchResults.Visible = query ~= "" and found > 0
+
+    if next(friends) == nil then
+        local emptyLabel = Instance.new("TextLabel")
+        emptyLabel.Size = UDim2.new(1, -8, 0, 28)
+        emptyLabel.BackgroundTransparency = 1
+        emptyLabel.Text = "Список друзей пуст"
+        emptyLabel.TextColor3 = colors.textDim
+        emptyLabel.TextSize = 12
+        emptyLabel.Font = Enum.Font.Gotham
+        emptyLabel.ZIndex = 2204
+        emptyLabel.Parent = friendsModalFriendsList
+    else
+        for userId, name in pairs(friends) do
+            local entry = Instance.new("Frame")
+            entry.Size = UDim2.new(1, -8, 0, 34)
+            entry.BackgroundColor3 = colors.panel
+            entry.BackgroundTransparency = buttonTransparency
+            entry.BorderSizePixel = 0
+            entry.ZIndex = 2204
+            entry.Parent = friendsModalFriendsList
+
+            local label = Instance.new("TextLabel")
+            label.BackgroundTransparency = 1
+            label.Position = UDim2.new(0, 12, 0, 0)
+            label.Size = UDim2.new(1, -70, 1, 0)
+            label.Text = tostring(name)
+            label.TextColor3 = colors.text
+            label.TextSize = 12
+            label.Font = Enum.Font.Gotham
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.ZIndex = 2205
+            label.Parent = entry
+
+            local removeBtn = Instance.new("TextButton")
+            removeBtn.Size = UDim2.new(0, 48, 0, 22)
+            removeBtn.Position = UDim2.new(1, -56, 0.5, -11)
+            removeBtn.BackgroundColor3 = colors.danger
+            removeBtn.BackgroundTransparency = buttonTransparency
+            removeBtn.Text = "DEL"
+            removeBtn.TextColor3 = Color3.new(1, 1, 1)
+            removeBtn.TextSize = 10
+            removeBtn.Font = Enum.Font.GothamBold
+            removeBtn.ZIndex = 2205
+            removeBtn.Parent = entry
+
+            removeBtn.MouseButton1Click:Connect(function()
+                friends[userId] = nil
+                saveConfig()
+                if espEnabled then
+                    updateESPPlayers()
+                end
+                refreshFriendsModalLists()
+                updateFunctions()
+            end)
+        end
+    end
+
+    refreshUtilityModalStyles()
+end
+
+function refreshTeleportModalLists()
+    if not teleportModalPointsList or not teleportModalPlayerResults then
+        return
+    end
+
+    local query = teleportModalPlayerSearchBox and string.lower(teleportModalPlayerSearchBox.Text or "") or ""
+    clearRenderContainer(teleportModalPlayerResults)
+    clearRenderContainer(teleportModalPointsList)
+
+    local found = 0
+    if query ~= "" then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player then
+                local lowerName = string.lower(p.Name or "")
+                local lowerDisplay = string.lower(p.DisplayName or "")
+                if string.find(lowerName, query, 1, true) or string.find(lowerDisplay, query, 1, true) then
+                    found = found + 1
+                    local resultBtn = Instance.new("TextButton")
+                    resultBtn.Size = UDim2.new(1, -8, 0, 34)
+                    resultBtn.BackgroundColor3 = colors.panel
+                    resultBtn.BackgroundTransparency = buttonTransparency
+                    resultBtn.Text = p.Name .. " (" .. p.DisplayName .. ")"
+                    resultBtn.TextXAlignment = Enum.TextXAlignment.Left
+                    resultBtn.TextColor3 = colors.text
+                    resultBtn.TextSize = 12
+                    resultBtn.Font = Enum.Font.Gotham
+                    resultBtn.ZIndex = 2204
+                    resultBtn.Parent = teleportModalPlayerResults
+
+                    local padding = Instance.new("UIPadding")
+                    padding.PaddingLeft = UDim.new(0, 12)
+                    padding.PaddingRight = UDim.new(0, 12)
+                    padding.Parent = resultBtn
+
+                    local tpLabel = Instance.new("TextLabel")
+                    tpLabel.BackgroundTransparency = 1
+                    tpLabel.AnchorPoint = Vector2.new(1, 0.5)
+                    tpLabel.Position = UDim2.new(1, -10, 0.5, 0)
+                    tpLabel.Size = UDim2.new(0, 44, 0, 16)
+                    tpLabel.Text = "TP"
+                    tpLabel.TextColor3 = colors.accentLight
+                    tpLabel.TextSize = 10
+                    tpLabel.Font = Enum.Font.GothamBold
+                    tpLabel.ZIndex = 2205
+                    tpLabel.Parent = resultBtn
+
+                    resultBtn.MouseButton1Click:Connect(function()
+                        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                            player.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                        end
+                        if teleportModalPlayerSearchBox then
+                            teleportModalPlayerSearchBox.Text = ""
+                        end
+                        refreshTeleportModalLists()
+                    end)
+                end
+            end
+        end
+    end
+    teleportModalPlayerResults.Visible = query ~= "" and found > 0
+
+    if #teleportPoints == 0 then
+        local emptyLabel = Instance.new("TextLabel")
+        emptyLabel.Size = UDim2.new(1, -8, 0, 28)
+        emptyLabel.BackgroundTransparency = 1
+        emptyLabel.Text = "Нет сохранённых точек"
+        emptyLabel.TextColor3 = colors.textDim
+        emptyLabel.TextSize = 12
+        emptyLabel.Font = Enum.Font.Gotham
+        emptyLabel.ZIndex = 2204
+        emptyLabel.Parent = teleportModalPointsList
+    else
+        for i, point in ipairs(teleportPoints) do
+            local entry = Instance.new("Frame")
+            entry.Size = UDim2.new(1, -8, 0, 44)
+            entry.BackgroundColor3 = colors.panel
+            entry.BackgroundTransparency = buttonTransparency
+            entry.BorderSizePixel = 0
+            entry.ZIndex = 2204
+            entry.Parent = teleportModalPointsList
+
+            local nameLabel = Instance.new("TextLabel")
+            nameLabel.BackgroundTransparency = 1
+            nameLabel.Position = UDim2.new(0, 12, 0, 5)
+            nameLabel.Size = UDim2.new(1, -122, 0, 16)
+            nameLabel.Text = tostring(point.name)
+            nameLabel.TextColor3 = colors.text
+            nameLabel.TextSize = 12
+            nameLabel.Font = Enum.Font.GothamSemibold
+            nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+            nameLabel.ZIndex = 2205
+            nameLabel.Parent = entry
+
+            local coordsLabel = Instance.new("TextLabel")
+            coordsLabel.BackgroundTransparency = 1
+            coordsLabel.Position = UDim2.new(0, 12, 0, 22)
+            coordsLabel.Size = UDim2.new(1, -122, 0, 14)
+            coordsLabel.Text = string.format("X:%.0f Y:%.0f Z:%.0f", point.x, point.y, point.z)
+            coordsLabel.TextColor3 = colors.textDim
+            coordsLabel.TextSize = 10
+            coordsLabel.Font = Enum.Font.Gotham
+            coordsLabel.TextXAlignment = Enum.TextXAlignment.Left
+            coordsLabel.ZIndex = 2205
+            coordsLabel.Parent = entry
+
+            local tpBtn = Instance.new("TextButton")
+            tpBtn.Size = UDim2.new(0, 44, 0, 24)
+            tpBtn.Position = UDim2.new(1, -100, 0.5, -12)
+            tpBtn.BackgroundColor3 = colors.accent
+            tpBtn.BackgroundTransparency = buttonTransparency
+            tpBtn.Text = "TP"
+            tpBtn.TextColor3 = Color3.new(1, 1, 1)
+            tpBtn.TextSize = 10
+            tpBtn.Font = Enum.Font.GothamBold
+            tpBtn.ZIndex = 2205
+            tpBtn.Parent = entry
+
+            tpBtn.MouseButton1Click:Connect(function()
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    player.Character.HumanoidRootPart.CFrame = CFrame.new(point.x, point.y, point.z)
+                end
+            end)
+
+            local delBtn = Instance.new("TextButton")
+            delBtn.Size = UDim2.new(0, 44, 0, 24)
+            delBtn.Position = UDim2.new(1, -52, 0.5, -12)
+            delBtn.BackgroundColor3 = colors.danger
+            delBtn.BackgroundTransparency = buttonTransparency
+            delBtn.Text = "DEL"
+            delBtn.TextColor3 = Color3.new(1, 1, 1)
+            delBtn.TextSize = 10
+            delBtn.Font = Enum.Font.GothamBold
+            delBtn.ZIndex = 2205
+            delBtn.Parent = entry
+
+            delBtn.MouseButton1Click:Connect(function()
+                table.remove(teleportPoints, i)
+                saveConfig()
+                refreshTeleportModalLists()
+                updateFunctions()
+            end)
+        end
+    end
+
+    refreshUtilityModalStyles()
+end
+
+function ensureUtilityModals()
+    if utilityModalShade then
+        return
+    end
+
+    utilityModalShade = Instance.new("TextButton")
+    utilityModalShade.Name = "UtilityModalShade"
+    utilityModalShade.Size = UDim2.new(1, 0, 1, 0)
+    utilityModalShade.BackgroundColor3 = Color3.fromRGB(4, 6, 14)
+    utilityModalShade.BackgroundTransparency = 1
+    utilityModalShade.BorderSizePixel = 0
+    utilityModalShade.Text = ""
+    utilityModalShade.AutoButtonColor = false
+    utilityModalShade.Visible = false
+    utilityModalShade.Active = false
+    utilityModalShade.ZIndex = 1
+    utilityModalShade.Parent = gui
+
+    friendsModal = Instance.new("Frame")
+    friendsModal.Name = "FriendsModal"
+    friendsModal.AnchorPoint = Vector2.new(0, 0)
+    friendsModal.Size = UDim2.new(0, 360, 0, 350)
+    friendsModal.Position = UDim2.new(0.72, 0, 0.18, 0)
+    friendsModal.BorderSizePixel = 0
+    friendsModal.Visible = false
+    friendsModal.ZIndex = 2200
+    friendsModal.Parent = gui
+    makeOverlayDraggable(friendsModal)
+
+    local friendsTitle = Instance.new("TextLabel")
+    friendsTitle.BackgroundTransparency = 1
+    friendsTitle.Position = UDim2.new(0, 16, 0, 12)
+    friendsTitle.Size = UDim2.new(1, -64, 0, 26)
+    friendsTitle.Text = "Friends Manager"
+    friendsTitle.TextColor3 = colors.text
+    friendsTitle.TextSize = 18
+    friendsTitle.Font = Enum.Font.GothamBold
+    friendsTitle.TextXAlignment = Enum.TextXAlignment.Left
+    friendsTitle.ZIndex = 2201
+    friendsTitle.Parent = friendsModal
+
+    local friendsClose = Instance.new("TextButton")
+    friendsClose.Size = UDim2.new(0, 28, 0, 28)
+    friendsClose.Position = UDim2.new(1, -40, 0, 12)
+    friendsClose.BackgroundColor3 = colors.panelLight
+    friendsClose.BackgroundTransparency = 0.04
+    friendsClose.BorderSizePixel = 0
+    friendsClose.Text = "x"
+    friendsClose.TextColor3 = colors.text
+    friendsClose.TextSize = 16
+    friendsClose.Font = Enum.Font.GothamBold
+    friendsClose.ZIndex = 2201
+    friendsClose.Parent = friendsModal
+    friendsClose.MouseButton1Click:Connect(function()
+        friendsModal.Visible = false
+    end)
+
+    friendsModalSearchBox = Instance.new("TextBox")
+    friendsModalSearchBox.Size = UDim2.new(1, -32, 0, 34)
+    friendsModalSearchBox.Position = UDim2.new(0, 16, 0, 54)
+    friendsModalSearchBox.PlaceholderText = "Search player to add"
+    friendsModalSearchBox.Text = ""
+    friendsModalSearchBox.ClearTextOnFocus = false
+    friendsModalSearchBox.ZIndex = 2201
+    friendsModalSearchBox.Parent = friendsModal
+    friendsModalSearchBox:GetPropertyChangedSignal("Text"):Connect(refreshFriendsModalLists)
+
+    friendsModalSearchResults = Instance.new("ScrollingFrame")
+    friendsModalSearchResults.Size = UDim2.new(1, -32, 0, 112)
+    friendsModalSearchResults.Position = UDim2.new(0, 16, 0, 96)
+    friendsModalSearchResults.BorderSizePixel = 0
+    friendsModalSearchResults.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    friendsModalSearchResults.CanvasSize = UDim2.new(0, 0, 0, 0)
+    friendsModalSearchResults.ScrollBarThickness = 4
+    friendsModalSearchResults.Visible = false
+    friendsModalSearchResults.ZIndex = 2201
+    friendsModalSearchResults.Parent = friendsModal
+    local friendsSearchLayout = Instance.new("UIListLayout")
+    friendsSearchLayout.Padding = UDim.new(0, 4)
+    friendsSearchLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    friendsSearchLayout.Parent = friendsModalSearchResults
+
+    local refreshFriendsBtn = Instance.new("TextButton")
+    refreshFriendsBtn.Size = UDim2.new(0, 146, 0, 28)
+    refreshFriendsBtn.Position = UDim2.new(0, 16, 0, 216)
+    refreshFriendsBtn.BackgroundColor3 = colors.accent
+    refreshFriendsBtn.BackgroundTransparency = buttonTransparency
+    refreshFriendsBtn.BorderSizePixel = 0
+    refreshFriendsBtn.Text = "Refresh Friends"
+    refreshFriendsBtn.TextSize = 11
+    refreshFriendsBtn.Font = Enum.Font.GothamSemibold
+    refreshFriendsBtn.ZIndex = 2201
+    refreshFriendsBtn.Parent = friendsModal
+    refreshFriendsBtn.MouseButton1Click:Connect(function()
+        local newFriends = {}
+        local currentPlayers = {}
+        for _, p in ipairs(Players:GetPlayers()) do
+            currentPlayers[p.UserId] = p
+        end
+        for userId, name in pairs(friends) do
+            if currentPlayers[userId] then
+                newFriends[userId] = name
+            end
+        end
+        friends = newFriends
+        saveConfig()
+        if espEnabled then
+            updateESPPlayers()
+        end
+        refreshFriendsModalLists()
+        updateFunctions()
+    end)
+
+    local friendsLabel = Instance.new("TextLabel")
+    friendsLabel.BackgroundTransparency = 1
+    friendsLabel.Position = UDim2.new(0, 16, 0, 252)
+    friendsLabel.Size = UDim2.new(1, -32, 0, 18)
+    friendsLabel.Text = "Current Friends"
+    friendsLabel.TextColor3 = colors.accentLight
+    friendsLabel.TextSize = 12
+    friendsLabel.Font = Enum.Font.GothamSemibold
+    friendsLabel.TextXAlignment = Enum.TextXAlignment.Left
+    friendsLabel.ZIndex = 2201
+    friendsLabel.Parent = friendsModal
+
+    friendsModalFriendsList = Instance.new("ScrollingFrame")
+    friendsModalFriendsList.Size = UDim2.new(1, -32, 1, -286)
+    friendsModalFriendsList.Position = UDim2.new(0, 16, 0, 276)
+    friendsModalFriendsList.BorderSizePixel = 0
+    friendsModalFriendsList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    friendsModalFriendsList.CanvasSize = UDim2.new(0, 0, 0, 0)
+    friendsModalFriendsList.ScrollBarThickness = 4
+    friendsModalFriendsList.ZIndex = 2201
+    friendsModalFriendsList.Parent = friendsModal
+    local friendsListLayout = Instance.new("UIListLayout")
+    friendsListLayout.Padding = UDim.new(0, 4)
+    friendsListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    friendsListLayout.Parent = friendsModalFriendsList
+
+    teleportModal = Instance.new("Frame")
+    teleportModal.Name = "TeleportModal"
+    teleportModal.AnchorPoint = Vector2.new(0, 0)
+    teleportModal.Size = UDim2.new(0, 390, 0, 390)
+    teleportModal.Position = UDim2.new(0.66, 0, 0.3, 0)
+    teleportModal.BorderSizePixel = 0
+    teleportModal.Visible = false
+    teleportModal.ZIndex = 2200
+    teleportModal.Parent = gui
+    makeOverlayDraggable(teleportModal)
+
+    local teleportTitle = Instance.new("TextLabel")
+    teleportTitle.BackgroundTransparency = 1
+    teleportTitle.Position = UDim2.new(0, 16, 0, 12)
+    teleportTitle.Size = UDim2.new(1, -64, 0, 26)
+    teleportTitle.Text = "Teleport Manager"
+    teleportTitle.TextColor3 = colors.text
+    teleportTitle.TextSize = 18
+    teleportTitle.Font = Enum.Font.GothamBold
+    teleportTitle.TextXAlignment = Enum.TextXAlignment.Left
+    teleportTitle.ZIndex = 2201
+    teleportTitle.Parent = teleportModal
+
+    local teleportClose = Instance.new("TextButton")
+    teleportClose.Size = UDim2.new(0, 28, 0, 28)
+    teleportClose.Position = UDim2.new(1, -40, 0, 12)
+    teleportClose.BackgroundColor3 = colors.panelLight
+    teleportClose.BackgroundTransparency = 0.04
+    teleportClose.BorderSizePixel = 0
+    teleportClose.Text = "x"
+    teleportClose.TextColor3 = colors.text
+    teleportClose.TextSize = 16
+    teleportClose.Font = Enum.Font.GothamBold
+    teleportClose.ZIndex = 2201
+    teleportClose.Parent = teleportModal
+    teleportClose.MouseButton1Click:Connect(function()
+        teleportModal.Visible = false
+    end)
+
+    teleportModalPositionLabel = Instance.new("TextLabel")
+    teleportModalPositionLabel.BackgroundTransparency = 1
+    teleportModalPositionLabel.Position = UDim2.new(0, 16, 0, 50)
+    teleportModalPositionLabel.Size = UDim2.new(1, -32, 0, 18)
+    teleportModalPositionLabel.Text = "X: 0.0 | Y: 0.0 | Z: 0.0"
+    teleportModalPositionLabel.TextColor3 = colors.textDim
+    teleportModalPositionLabel.TextSize = 12
+    teleportModalPositionLabel.Font = Enum.Font.Gotham
+    teleportModalPositionLabel.TextXAlignment = Enum.TextXAlignment.Left
+    teleportModalPositionLabel.ZIndex = 2201
+    teleportModalPositionLabel.Parent = teleportModal
+
+    teleportModalPointNameBox = Instance.new("TextBox")
+    teleportModalPointNameBox.Size = UDim2.new(0.58, -6, 0, 34)
+    teleportModalPointNameBox.Position = UDim2.new(0, 16, 0, 76)
+    teleportModalPointNameBox.PlaceholderText = "Point name"
+    teleportModalPointNameBox.Text = ""
+    teleportModalPointNameBox.ClearTextOnFocus = false
+    teleportModalPointNameBox.ZIndex = 2201
+    teleportModalPointNameBox.Parent = teleportModal
+
+    local savePointBtn = Instance.new("TextButton")
+    savePointBtn.Size = UDim2.new(0.42, -6, 0, 34)
+    savePointBtn.Position = UDim2.new(0.58, 6, 0, 76)
+    savePointBtn.BackgroundColor3 = colors.friend
+    savePointBtn.BackgroundTransparency = buttonTransparency
+    savePointBtn.BorderSizePixel = 0
+    savePointBtn.Text = "Save Point"
+    savePointBtn.TextSize = 11
+    savePointBtn.Font = Enum.Font.GothamSemibold
+    savePointBtn.ZIndex = 2201
+    savePointBtn.Parent = teleportModal
+    savePointBtn.MouseButton1Click:Connect(function()
+        local character = player.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local pos = character.HumanoidRootPart.Position
+            local name = teleportModalPointNameBox.Text
+            if name == "" then
+                name = "Точка #" .. (#teleportPoints + 1)
+            end
+            table.insert(teleportPoints, {name = name, x = pos.X, y = pos.Y, z = pos.Z})
+            saveConfig()
+            teleportModalPointNameBox.Text = ""
+            refreshTeleportModalLists()
+            updateFunctions()
+        end
+    end)
+
+    local tpPlayerLabel = Instance.new("TextLabel")
+    tpPlayerLabel.BackgroundTransparency = 1
+    tpPlayerLabel.Position = UDim2.new(0, 16, 0, 120)
+    tpPlayerLabel.Size = UDim2.new(1, -32, 0, 18)
+    tpPlayerLabel.Text = "Teleport To Player"
+    tpPlayerLabel.TextColor3 = colors.accentLight
+    tpPlayerLabel.TextSize = 12
+    tpPlayerLabel.Font = Enum.Font.GothamSemibold
+    tpPlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
+    tpPlayerLabel.ZIndex = 2201
+    tpPlayerLabel.Parent = teleportModal
+
+    teleportModalPlayerSearchBox = Instance.new("TextBox")
+    teleportModalPlayerSearchBox.Size = UDim2.new(1, -32, 0, 34)
+    teleportModalPlayerSearchBox.Position = UDim2.new(0, 16, 0, 144)
+    teleportModalPlayerSearchBox.PlaceholderText = "Search player"
+    teleportModalPlayerSearchBox.Text = ""
+    teleportModalPlayerSearchBox.ClearTextOnFocus = false
+    teleportModalPlayerSearchBox.ZIndex = 2201
+    teleportModalPlayerSearchBox.Parent = teleportModal
+    teleportModalPlayerSearchBox:GetPropertyChangedSignal("Text"):Connect(refreshTeleportModalLists)
+
+    teleportModalPlayerResults = Instance.new("ScrollingFrame")
+    teleportModalPlayerResults.Size = UDim2.new(1, -32, 0, 82)
+    teleportModalPlayerResults.Position = UDim2.new(0, 16, 0, 186)
+    teleportModalPlayerResults.BorderSizePixel = 0
+    teleportModalPlayerResults.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    teleportModalPlayerResults.CanvasSize = UDim2.new(0, 0, 0, 0)
+    teleportModalPlayerResults.ScrollBarThickness = 4
+    teleportModalPlayerResults.Visible = false
+    teleportModalPlayerResults.ZIndex = 2201
+    teleportModalPlayerResults.Parent = teleportModal
+    local teleportResultsLayout = Instance.new("UIListLayout")
+    teleportResultsLayout.Padding = UDim.new(0, 4)
+    teleportResultsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    teleportResultsLayout.Parent = teleportModalPlayerResults
+
+    local pointsLabel = Instance.new("TextLabel")
+    pointsLabel.BackgroundTransparency = 1
+    pointsLabel.Position = UDim2.new(0, 16, 0, 276)
+    pointsLabel.Size = UDim2.new(1, -32, 0, 18)
+    pointsLabel.Text = "Saved Points"
+    pointsLabel.TextColor3 = colors.accentLight
+    pointsLabel.TextSize = 12
+    pointsLabel.Font = Enum.Font.GothamSemibold
+    pointsLabel.TextXAlignment = Enum.TextXAlignment.Left
+    pointsLabel.ZIndex = 2201
+    pointsLabel.Parent = teleportModal
+
+    teleportModalPointsList = Instance.new("ScrollingFrame")
+    teleportModalPointsList.Size = UDim2.new(1, -32, 1, -310)
+    teleportModalPointsList.Position = UDim2.new(0, 16, 0, 300)
+    teleportModalPointsList.BorderSizePixel = 0
+    teleportModalPointsList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    teleportModalPointsList.CanvasSize = UDim2.new(0, 0, 0, 0)
+    teleportModalPointsList.ScrollBarThickness = 4
+    teleportModalPointsList.ZIndex = 2201
+    teleportModalPointsList.Parent = teleportModal
+    local teleportPointsLayout = Instance.new("UIListLayout")
+    teleportPointsLayout.Padding = UDim.new(0, 4)
+    teleportPointsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    teleportPointsLayout.Parent = teleportModalPointsList
+
+    teleportModalPositionConnection = RunService.RenderStepped:Connect(function()
+        if teleportModal and teleportModal.Visible and teleportModalPositionLabel and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local pos = player.Character.HumanoidRootPart.Position
+            teleportModalPositionLabel.Text = string.format("X: %.1f | Y: %.1f | Z: %.1f", pos.X, pos.Y, pos.Z)
+        end
+    end)
+
+    refreshUtilityModalStyles()
+end
+
+function openUtilityModal(modalName)
+    ensureUtilityModals()
+    if modalName == "friends" and friendsModal then
+        friendsModal.Visible = not friendsModal.Visible
+        friendsModal.ZIndex = 2200
+    elseif modalName == "teleport" and teleportModal then
+        teleportModal.Visible = not teleportModal.Visible
+        teleportModal.ZIndex = 2200
+    end
+
+    if modalName == "friends" then
+        if friendsModal and friendsModal.Visible then
+            refreshFriendsModalLists()
+        end
+    elseif modalName == "teleport" then
+        if teleportModal and teleportModal.Visible then
+            refreshTeleportModalLists()
+        end
+    end
+
+    refreshUtilityModalStyles()
 end
 
 function createSectionHeader(container, text)
@@ -6588,10 +7307,4 @@ function stopFollow()
     end
 end
 
-print("✅ Nez0x UI - ПОЛНАЯ ВЕРСИЯ")
-print("📌 Пароль ADMIN: 853488")
-print("📌 M - открыть/закрыть меню")
-print("📌 F8 - выгрузить")
-print("📌 5 режимов частиц: Круговой, Вертикальный, Крест, Вихрь, Сфера")
-print("📌 ESP предметов с названиями")
-print("📌 БЕССМЕРТИЕ + ТРАХ-ТРАХ с выбором игрока")
+print("\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\hhhhhhhhhhhhhhhhhhhhhhhhhhhh")
